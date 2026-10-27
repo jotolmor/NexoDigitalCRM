@@ -60,6 +60,15 @@ npm test
 
 Estas rutas no requieren sesión y no exponen información de pacientes ni de configuración.
 
+## Despliegue de la API en Railway
+
+1. Crea un proyecto Railway desde el repositorio de GitHub y añade PostgreSQL.
+2. Crea un servicio desde el mismo repositorio para la API. Usa el directorio raíz `/` y el Dockerfile `apps/api/Dockerfile`.
+3. En variables del servicio API configura `DATABASE_URL` con la referencia de Railway a PostgreSQL, `JWT_SECRET` con un secreto aleatorio seguro y `WEB_ORIGIN` con `https://nexodigitalcrm.pages.dev`.
+4. Configura el comando de inicio como `sh -c 'npx prisma migrate deploy --schema=prisma/schema.prisma && node dist/main.js'` desde el directorio `/app/apps/api` (el Dockerfile ya establece este directorio).
+5. Genera un dominio público para la API y verifica `/api/health/ready`.
+6. En Cloudflare Pages, añade `VITE_API_URL=https://TU-DOMINIO-API/api` como variable de compilación y vuelve a desplegar.
+
 ## Seguridad y alcance actual
 
 - Las contraseñas se almacenan con bcrypt.
