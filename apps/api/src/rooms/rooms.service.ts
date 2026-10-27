@@ -1,0 +1,2 @@
+import { Injectable } from '@nestjs/common'; import { PrismaService } from '../prisma.service'; import { SessionUser, requireClinic, requireWriter } from '../common/access';
+@Injectable() export class RoomsService { constructor(private prisma:PrismaService){} list(user:SessionUser){const clinicId=requireClinic(user);return this.prisma.room.findMany({where:{tenantId:user.tenantId,clinicId},orderBy:{name:'asc'}})} create(user:SessionUser,name:string){const clinicId=requireWriter(user);return this.prisma.room.create({data:{tenantId:user.tenantId,clinicId,name}})} }

@@ -1,0 +1,3 @@
+ALTER TABLE "Clinic"
+  ADD COLUMN "businessType" TEXT NOT NULL DEFAULT 'CLINIC',
+  ADD COLUMN "terminology" JSONB;

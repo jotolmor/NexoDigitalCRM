@@ -1,0 +1,392 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLATFORM_ADMIN
+  CLINIC_OWNER
+  DIRECTOR
+  RECEPTIONIST
+  PROFESSIONAL
+  ADMINISTRATIVE
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum FollowUpStatus {
+  PENDING
+  CONTACTED
+  COMPLETED
+  CANCELLED
+}
+
+enum AutomationEventStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  BOOKED
+  CANCELLED
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clinics   Clinic[]
+  users     User[]
+  patients  Patient[]
+  appointments Appointment[]
+  professionals Professional[]
+  services Service[]
+  followUps FollowUp[]
+  automationEvents AutomationEvent[]
+  subscriptions Subscription[]
+}
+
+model Clinic {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  specialty String
+  businessType String @default("CLINIC")
+  terminology  Json?
+  timezone  String   @default("Europe/Madrid")
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users     User[]
+  patients  Patient[]
+  appointments Appointment[]
+  professionals Professional[]
+  services Service[]
+  followUps FollowUp[]
+  automationEvents AutomationEvent[]
+  notificationTemplates NotificationTemplate[]
+  notifications Notification[]
+  rooms Room[]
+  waitlistEntries WaitlistEntry[]
+  @@index([tenantId])
+}
+
+model WaitlistEntry {
+  id              String         @id @default(cuid())
+  tenantId        String
+  clinicId        String
+  patientId       String
+  professionalId  String?
+  preferredFrom   DateTime?
+  preferredTo     DateTime?
+  notes           String?
+  status          WaitlistStatus @default(WAITING)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  clinic          Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient         Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional    Professional?  @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+  @@index([tenantId, clinicId, status, createdAt])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  tenantId  String
+  clinicId  String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  @@unique([clinicId, name])
+  @@index([tenantId, clinicId])
+}
+
+model NotificationTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  clinicId  String
+  channel   String
+  eventType String
+  subject   String?
+  body      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  @@unique([clinicId, channel, eventType])
+  @@index([tenantId, clinicId])
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  tenantId    String
+  clinicId    String
+  patientId   String?
+  channel     String
+  eventType   String
+  recipient   String
+  payload     Json
+  status      NotificationStatus @default(PENDING)
+  scheduledAt DateTime           @default(now())
+  sentAt      DateTime?
+  createdAt   DateTime           @default(now())
+  clinic      Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clinicId, status, scheduledAt])
+}
+
+model SubscriptionPlan {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  monthlyPriceCents Int
+  maxUsers          Int
+  maxLocations      Int
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  subscriptions     Subscription[]
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  tenantId  String
+  planId    String
+  status    String
+  startsAt  DateTime @default(now())
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  @@index([tenantId, status])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  clinicId     String?
+  email        String
+  passwordHash String
+  name         String
+  role         UserRole @default(CLINIC_OWNER)
+  createdAt    DateTime @default(now())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic       Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  @@unique([email])
+  @@index([tenantId])
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  tenantId  String
+  clinicId  String
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  followUps FollowUp[]
+  waitlistEntries WaitlistEntry[]
+  consents Consent[]
+  documents Document[]
+  @@index([tenantId, clinicId])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  tenantId    String
+  clinicId    String
+  patientId   String
+  category    String
+  fileName    String
+  contentType String
+  storageKey  String
+  createdAt   DateTime @default(now())
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, storageKey])
+  @@index([tenantId, clinicId, patientId, createdAt])
+}
+
+model Consent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  clinicId    String
+  patientId   String
+  type        String
+  version     String
+  granted     Boolean
+  recordedAt  DateTime @default(now())
+  withdrawnAt DateTime?
+  notes       String?
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clinicId, patientId, type])
+}
+
+model Professional {
+  id        String   @id @default(cuid())
+  tenantId  String
+  clinicId  String
+  firstName String
+  lastName  String
+  specialty String
+  email     String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  services  ProfessionalService[]
+  appointments Appointment[]
+  scheduleRules ScheduleRule[]
+  timeOffs TimeOff[]
+  waitlistEntries WaitlistEntry[]
+  @@index([tenantId, clinicId])
+}
+
+model ScheduleRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  clinicId       String
+  professionalId String
+  weekday        Int
+  startsAtMinute Int
+  endsAtMinute   Int
+  active         Boolean  @default(true)
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clinicId, professionalId, weekday])
+}
+
+model TimeOff {
+  id             String   @id @default(cuid())
+  tenantId       String
+  clinicId       String
+  professionalId String
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String?
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clinicId, professionalId, startsAt])
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  tenantId        String
+  clinicId        String
+  name            String
+  description     String?
+  durationMinutes Int
+  priceCents      Int?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic          Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  professionals   ProfessionalService[]
+  @@unique([clinicId, name])
+  @@index([tenantId, clinicId])
+}
+
+model ProfessionalService {
+  professionalId String
+  serviceId      String
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service       Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  @@id([professionalId, serviceId])
+}
+
+model Appointment {
+  id        String            @id @default(cuid())
+  tenantId  String
+  clinicId  String
+  patientId String
+  professionalId String
+  roomId String?
+  startsAt  DateTime
+  endsAt    DateTime
+  status    AppointmentStatus @default(SCHEDULED)
+  createdAt DateTime          @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Restrict)
+  room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  followUps FollowUp[]
+  @@index([tenantId, startsAt])
+  @@index([clinicId, startsAt])
+  @@index([professionalId, startsAt])
+}
+
+model FollowUp {
+  id            String         @id @default(cuid())
+  tenantId      String
+  clinicId      String
+  patientId     String
+  appointmentId String?
+  title         String
+  notes         String?
+  status        FollowUpStatus @default(PENDING)
+  dueAt         DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  @@index([tenantId, clinicId, status])
+  @@index([patientId, dueAt])
+}
+
+model AutomationEvent {
+  id          String                @id @default(cuid())
+  tenantId    String
+  clinicId    String
+  type        String
+  payload     Json
+  status      AutomationEventStatus @default(PENDING)
+  attempts    Int                   @default(0)
+  availableAt DateTime              @default(now())
+  createdAt   DateTime              @default(now())
+  deliveredAt DateTime?
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic      Clinic                @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clinicId, status, availableAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  clinicId   String
+  actorUserId String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  @@index([tenantId, clinicId, createdAt])
+  @@index([entityType, entityId])
+}

@@ -1,0 +1,8 @@
+CREATE TYPE "NotificationStatus" AS ENUM ('PENDING', 'SENT', 'FAILED', 'CANCELLED');
+CREATE TABLE "NotificationTemplate" ("id" TEXT NOT NULL, "tenantId" TEXT NOT NULL, "clinicId" TEXT NOT NULL, "channel" TEXT NOT NULL, "eventType" TEXT NOT NULL, "subject" TEXT, "body" TEXT NOT NULL, "active" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "NotificationTemplate_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "NotificationTemplate_clinicId_channel_eventType_key" ON "NotificationTemplate"("clinicId", "channel", "eventType");
+CREATE INDEX "NotificationTemplate_tenantId_clinicId_idx" ON "NotificationTemplate"("tenantId", "clinicId");
+CREATE TABLE "Notification" ("id" TEXT NOT NULL, "tenantId" TEXT NOT NULL, "clinicId" TEXT NOT NULL, "patientId" TEXT, "channel" TEXT NOT NULL, "eventType" TEXT NOT NULL, "recipient" TEXT NOT NULL, "payload" JSONB NOT NULL, "status" "NotificationStatus" NOT NULL DEFAULT 'PENDING', "scheduledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "sentAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Notification_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "Notification_tenantId_clinicId_status_scheduledAt_idx" ON "Notification"("tenantId", "clinicId", "status", "scheduledAt");
+ALTER TABLE "NotificationTemplate" ADD CONSTRAINT "NotificationTemplate_clinicId_fkey" FOREIGN KEY ("clinicId") REFERENCES "Clinic"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_clinicId_fkey" FOREIGN KEY ("clinicId") REFERENCES "Clinic"("id") ON DELETE CASCADE ON UPDATE CASCADE;

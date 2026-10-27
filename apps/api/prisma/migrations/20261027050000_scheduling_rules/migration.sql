@@ -1,0 +1,6 @@
+CREATE TABLE "ScheduleRule" ("id" TEXT NOT NULL, "tenantId" TEXT NOT NULL, "clinicId" TEXT NOT NULL, "professionalId" TEXT NOT NULL, "weekday" INTEGER NOT NULL, "startsAtMinute" INTEGER NOT NULL, "endsAtMinute" INTEGER NOT NULL, "active" BOOLEAN NOT NULL DEFAULT true, CONSTRAINT "ScheduleRule_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "ScheduleRule_tenantId_clinicId_professionalId_weekday_idx" ON "ScheduleRule"("tenantId", "clinicId", "professionalId", "weekday");
+ALTER TABLE "ScheduleRule" ADD CONSTRAINT "ScheduleRule_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "TimeOff" ("id" TEXT NOT NULL, "tenantId" TEXT NOT NULL, "clinicId" TEXT NOT NULL, "professionalId" TEXT NOT NULL, "startsAt" TIMESTAMP(3) NOT NULL, "endsAt" TIMESTAMP(3) NOT NULL, "reason" TEXT, CONSTRAINT "TimeOff_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "TimeOff_tenantId_clinicId_professionalId_startsAt_idx" ON "TimeOff"("tenantId", "clinicId", "professionalId", "startsAt");
+ALTER TABLE "TimeOff" ADD CONSTRAINT "TimeOff_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;

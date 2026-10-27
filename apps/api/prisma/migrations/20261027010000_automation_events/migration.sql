@@ -1,0 +1,5 @@
+CREATE TYPE "AutomationEventStatus" AS ENUM ('PENDING', 'DELIVERED', 'FAILED');
+CREATE TABLE "AutomationEvent" ("id" TEXT NOT NULL, "tenantId" TEXT NOT NULL, "clinicId" TEXT NOT NULL, "type" TEXT NOT NULL, "payload" JSONB NOT NULL, "status" "AutomationEventStatus" NOT NULL DEFAULT 'PENDING', "attempts" INTEGER NOT NULL DEFAULT 0, "availableAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "deliveredAt" TIMESTAMP(3), CONSTRAINT "AutomationEvent_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "AutomationEvent_tenantId_clinicId_status_availableAt_idx" ON "AutomationEvent"("tenantId", "clinicId", "status", "availableAt");
+ALTER TABLE "AutomationEvent" ADD CONSTRAINT "AutomationEvent_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AutomationEvent" ADD CONSTRAINT "AutomationEvent_clinicId_fkey" FOREIGN KEY ("clinicId") REFERENCES "Clinic"("id") ON DELETE CASCADE ON UPDATE CASCADE;

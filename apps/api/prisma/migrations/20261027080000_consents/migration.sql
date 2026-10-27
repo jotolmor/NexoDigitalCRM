@@ -1,0 +1,3 @@
+CREATE TABLE "Consent" ("id" TEXT NOT NULL, "tenantId" TEXT NOT NULL, "clinicId" TEXT NOT NULL, "patientId" TEXT NOT NULL, "type" TEXT NOT NULL, "version" TEXT NOT NULL, "granted" BOOLEAN NOT NULL, "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "withdrawnAt" TIMESTAMP(3), "notes" TEXT, CONSTRAINT "Consent_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "Consent_tenantId_clinicId_patientId_type_idx" ON "Consent"("tenantId", "clinicId", "patientId", "type");
+ALTER TABLE "Consent" ADD CONSTRAINT "Consent_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE CASCADE ON UPDATE CASCADE;

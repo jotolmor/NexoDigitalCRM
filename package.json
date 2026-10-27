@@ -1,0 +1,16 @@
+{
+  "name": "nexoclinic-ai",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @nexoclinic/api\" \"npm run dev -w @nexoclinic/web\"",
+    "build": "npm run build -w @nexoclinic/api && npm run build -w @nexoclinic/web",
+    "test": "npm run test -w @nexoclinic/api",
+    "db:generate": "npm run prisma:generate -w @nexoclinic/api",
+    "db:migrate": "npm run prisma:migrate -w @nexoclinic/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
