@@ -1,4 +1,4 @@
-# NexoClinic AI
+# NexoDigitalCRM
 
 Plataforma SaaS multi-tenant para la gestión de clínicas. La primera vertical es odontología, pero el núcleo permite configurar clínicas y especialidades adicionales.
 
