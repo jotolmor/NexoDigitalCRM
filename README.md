@@ -1,5 +1,7 @@
 # NexoDigitalCRM
 
+Hola esto es un cambio de prueba 
+
 Plataforma SaaS multi-tenant para la gestión de clínicas. La primera vertical es odontología, pero el núcleo permite configurar clínicas y especialidades adicionales.
 
 También funciona como plataforma para negocios de servicios. Al crear una instalación se selecciona un sector y la interfaz adapta los términos de clientes, equipo, reservas y servicios. Están incluidos salud, belleza, fitness, educación, servicios profesionales, servicios a domicilio, automoción y una opción genérica.
