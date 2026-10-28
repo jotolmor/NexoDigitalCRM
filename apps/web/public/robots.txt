@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nexocrm.nexodigitaldesing.com/sitemap.xml
