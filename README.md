@@ -85,7 +85,7 @@ Las rutas siguientes requieren un JWT obtenido en `/api/auth/login` o `/api/auth
 
 - `GET` y `POST /api/patients`: búsqueda y alta de pacientes.
 - `GET` y `POST /api/professionals`: profesionales de la clínica.
-- `GET` y `POST /api/services`: catálogo de servicios, duración y precio en céntimos.
+- `GET` y `POST /api/services`: catálogo de servicios, duración y precio en euros (hasta dos decimales).
 - `POST /api/professionals/:professionalId/services/:serviceId`: asigna un servicio de la misma clínica a un profesional.
 
 Solo propietario, director, recepción y personal administrativo pueden crear o asociar recursos. Las rutas rechazan identificadores de otra clínica.
