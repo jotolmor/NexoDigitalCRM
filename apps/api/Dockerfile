@@ -24,4 +24,4 @@ COPY --from=build /app/node_modules/.prisma/client node_modules/.prisma/client
 COPY --from=build /app/node_modules/@prisma/client node_modules/@prisma/client
 WORKDIR /app/apps/api
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
