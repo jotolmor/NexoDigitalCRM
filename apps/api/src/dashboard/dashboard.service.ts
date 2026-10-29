@@ -52,6 +52,63 @@ export class DashboardService {
     return { year, timezone: clinic.timezone, days: [...records].map(([date, value]) => ({ date, ...value, status: value.totalMinutes === 0 ? 'closed' : value.occupiedMinutes === 0 ? 'free' : value.occupiedMinutes >= value.totalMinutes ? 'full' : 'partial' })) };
   }
 
+  async day(user: SessionUser, date: string) {
+    const clinicId = requireClinic(user);
+    const clinic = await this.prisma.clinic.findFirstOrThrow({ where: { id: clinicId, tenantId: user.tenantId }, select: { timezone: true } });
+    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+    // The range is deliberately padded because the requested day is in the clinic's
+    // local timezone, which can differ from UTC by up to a full day.
+    const start = new Date(`${date}T00:00:00Z`); start.setUTCDate(start.getUTCDate() - 1);
+    const end = new Date(`${date}T00:00:00Z`); end.setUTCDate(end.getUTCDate() + 2);
+    const [professionals, appointments, timeOffs] = await Promise.all([
+      this.prisma.professional.findMany({ where: { tenantId: user.tenantId, clinicId, active: true }, select: {
+        id: true, firstName: true, lastName: true, specialty: true,
+        scheduleRules: { where: { active: true, weekday, validFrom: { lte: new Date(`${date}T00:00:00Z`) }, validTo: { gte: new Date(`${date}T00:00:00Z`) } }, select: { startsAtMinute: true, endsAtMinute: true } },
+        services: { select: { service: { select: { id: true, name: true, durationMinutes: true, priceEuros: true } } } }
+      } }),
+      this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId, startsAt: { lt: end }, endsAt: { gt: start }, status: { not: 'CANCELLED' } }, include: {
+        patient: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+        professional: { select: { id: true, firstName: true, lastName: true, specialty: true } },
+        room: { select: { id: true, name: true } }
+      }, orderBy: { startsAt: 'asc' } }),
+      this.prisma.timeOff.findMany({ where: { tenantId: user.tenantId, clinicId, startsAt: { lt: end }, endsAt: { gt: start } }, select: { professionalId: true, startsAt: true, endsAt: true, reason: true } })
+    ]);
+    const apptsForDay = appointments.filter(item => this.localParts(item.startsAt, clinic.timezone).date === date || (this.localParts(item.endsAt, clinic.timezone).date === date && this.localParts(item.startsAt, clinic.timezone).date < date));
+    const dayOffs = timeOffs.filter(item => this.localParts(item.startsAt, clinic.timezone).date <= date && this.localParts(item.endsAt, clinic.timezone).date >= date);
+    const minuteFor = (at: Date) => {
+      const parts = this.localParts(at, clinic.timezone);
+      if (parts.date < date) return 0;
+      if (parts.date > date) return 1440;
+      return parts.minute;
+    };
+    const format = (minute: number) => `${String(Math.floor(minute / 60) % 24).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+    const result = professionals.map(professional => {
+      const schedule = this.merge(professional.scheduleRules.map(rule => ({ start: rule.startsAtMinute, end: rule.endsAtMinute })));
+      const events = apptsForDay.filter(item => item.professionalId === professional.id).map(item => ({ ...item, start: minuteFor(item.startsAt), end: minuteFor(item.endsAt) }));
+      const absences = dayOffs.filter(item => item.professionalId === professional.id).map(item => ({ start: minuteFor(item.startsAt), end: minuteFor(item.endsAt), reason: item.reason }));
+      const busy = this.merge([...events.map(item => ({ start: item.start, end: item.end })), ...absences]);
+      const freeSlots: { start: string; end: string; startMinute: number; endMinute: number }[] = [];
+      for (const range of schedule) {
+        let cursor = range.start;
+        for (const block of busy) {
+          const from = Math.max(range.start, block.start); const to = Math.min(range.end, block.end);
+          if (to <= from) continue;
+          if (from > cursor) freeSlots.push({ start: format(cursor), end: format(from), startMinute: cursor, endMinute: from });
+          cursor = Math.max(cursor, to);
+        }
+        if (cursor < range.end) freeSlots.push({ start: format(cursor), end: format(range.end), startMinute: cursor, endMinute: range.end });
+      }
+      return {
+        id: professional.id, name: `${professional.firstName} ${professional.lastName}`, specialty: professional.specialty,
+        services: professional.services.map(item => item.service),
+        schedule: schedule.map(range => ({ start: format(range.start), end: format(range.end), startMinute: range.start, endMinute: range.end })),
+        appointments: events.map(({ start, end, ...item }) => ({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt, start: format(start), end: format(end), status: item.status, patient: item.patient, room: item.room })),
+        timeOff: absences.map(item => ({ start: format(item.start), end: format(item.end), reason: item.reason })), freeSlots
+      };
+    });
+    return { date, timezone: clinic.timezone, professionals: result, appointmentCount: apptsForDay.length, appointments: apptsForDay.map(item => ({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt, patient: item.patient, professional: item.professional, room: item.room, status: item.status })).sort((a,b) => a.startsAt.getTime() - b.startsAt.getTime()) };
+  }
+
   private dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 
   private groupIntervals(items: { startsAt: Date; endsAt: Date }[], timezone: string) {
