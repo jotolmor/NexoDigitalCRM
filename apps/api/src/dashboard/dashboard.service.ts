@@ -69,6 +69,7 @@ export class DashboardService {
       this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId, startsAt: { lt: end }, endsAt: { gt: start }, status: { not: 'CANCELLED' } }, include: {
         patient: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
         professional: { select: { id: true, firstName: true, lastName: true, specialty: true } },
+        service: { select: { id: true, name: true, durationMinutes: true } },
         room: { select: { id: true, name: true } }
       }, orderBy: { startsAt: 'asc' } }),
       this.prisma.timeOff.findMany({ where: { tenantId: user.tenantId, clinicId, startsAt: { lt: end }, endsAt: { gt: start } }, select: { professionalId: true, startsAt: true, endsAt: true, reason: true } })
@@ -102,11 +103,11 @@ export class DashboardService {
         id: professional.id, name: `${professional.firstName} ${professional.lastName}`, specialty: professional.specialty,
         services: professional.services.map(item => item.service),
         schedule: schedule.map(range => ({ start: format(range.start), end: format(range.end), startMinute: range.start, endMinute: range.end })),
-        appointments: events.map(({ start, end, ...item }) => ({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt, start: format(start), end: format(end), status: item.status, patient: item.patient, room: item.room })),
+        appointments: events.map(({ start, end, ...item }) => ({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt, start: format(start), end: format(end), status: item.status, patient: item.patient, service: item.service, room: item.room })),
         timeOff: absences.map(item => ({ start: format(item.start), end: format(item.end), reason: item.reason })), freeSlots
       };
     });
-    return { date, timezone: clinic.timezone, professionals: result, appointmentCount: apptsForDay.length, appointments: apptsForDay.map(item => ({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt, patient: item.patient, professional: item.professional, room: item.room, status: item.status })).sort((a,b) => a.startsAt.getTime() - b.startsAt.getTime()) };
+    return { date, timezone: clinic.timezone, professionals: result, appointmentCount: apptsForDay.length, appointments: apptsForDay.map(item => ({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt, patient: item.patient, professional: item.professional, service: item.service, room: item.room, status: item.status })).sort((a,b) => a.startsAt.getTime() - b.startsAt.getTime()) };
   }
 
   private dateKey(date: Date) { return date.toISOString().slice(0, 10); }

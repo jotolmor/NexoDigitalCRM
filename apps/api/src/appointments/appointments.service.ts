@@ -7,11 +7,14 @@ import { AuditService } from '../audit/audit.service';
 @Injectable()
 export class AppointmentsService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
-  list(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId }, include: { patient: true, professional: true }, orderBy: { startsAt: 'asc' } }); }
-  async availability(user: SessionUser, professionalId: string, durationMinutes: number) {
+  list(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId }, include: { patient: true, professional: true, service: true, room: true }, orderBy: { startsAt: 'asc' } }); }
+  async availability(user: SessionUser, professionalId: string, serviceId: string) {
     const clinicId = requireClinic(user);
     const professional = await this.prisma.professional.findFirst({ where: { id: professionalId, tenantId: user.tenantId, clinicId, active: true }, select: { id: true } });
     if (!professional) throw new NotFoundException('Profesional no encontrado');
+    const service = await this.prisma.service.findFirst({ where: { id: serviceId, tenantId: user.tenantId, clinicId, active: true }, select: { id: true, name: true, durationMinutes: true } });
+    if (!service) throw new NotFoundException('Tratamiento no encontrado');
+    const durationMinutes = service.durationMinutes;
     const clinic = await this.prisma.clinic.findFirstOrThrow({ where: { id: clinicId, tenantId: user.tenantId }, select: { timezone: true } });
     const from = new Date(Math.ceil(Date.now() / 900000) * 900000); const until = new Date(from.getTime() + 45 * 86400000);
     const [rules, appointments, timeOffs] = await Promise.all([
@@ -28,17 +31,17 @@ export class AppointmentsService {
       if (appointments.some(item => item.startsAt < endsAt && item.endsAt > startsAt) || timeOffs.some(item => item.startsAt < endsAt && item.endsAt > startsAt)) continue;
       slots.push({ startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), localStart: `${localStart.date} ${this.formatMinute(localStart.minute)}`, localEnd: this.formatMinute(localEnd.minute) });
     }
-    return { professionalId, durationMinutes, timezone: clinic.timezone, firstAvailable: slots[0] ?? null, slots, searchedUntil: until.toISOString() };
+    return { professionalId, service, durationMinutes, timezone: clinic.timezone, firstAvailable: slots[0] ?? null, slots, searchedUntil: until.toISOString() };
   }
-  async create(user: SessionUser, input: { patientId: string; professionalId: string; roomId?: string; startsAt: string; endsAt: string }) {
+  async create(user: SessionUser, input: { patientId: string; professionalId: string; serviceId?: string; roomId?: string; startsAt: string; endsAt: string }) {
     const clinicId = requireWriter(user); const appointment = await this.reserve(user.tenantId, clinicId, input); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.created', entityType: 'Appointment', entityId: appointment.id }); return appointment;
   }
-  async reschedule(user: SessionUser, id: string, input: { startsAt: string; endsAt: string; professionalId?: string; roomId?: string }) {
+  async reschedule(user: SessionUser, id: string, input: { startsAt: string; endsAt: string; professionalId?: string; serviceId?: string; roomId?: string }) {
     const clinicId = requireWriter(user);
     const appointment = await this.prisma.appointment.findFirst({ where: { id, tenantId: user.tenantId, clinicId } });
     if (!appointment) throw new NotFoundException('Cita no encontrada');
     if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(appointment.status)) throw new ConflictException('Esta cita no puede reprogramarse');
-    const updated = await this.reserve(user.tenantId, clinicId, { patientId: appointment.patientId, professionalId: input.professionalId ?? appointment.professionalId, roomId: input.roomId ?? appointment.roomId ?? undefined, startsAt: input.startsAt, endsAt: input.endsAt }, id); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.rescheduled', entityType: 'Appointment', entityId: id }); return updated;
+    const updated = await this.reserve(user.tenantId, clinicId, { patientId: appointment.patientId, professionalId: input.professionalId ?? appointment.professionalId, serviceId: input.serviceId ?? appointment.serviceId ?? undefined, roomId: input.roomId ?? appointment.roomId ?? undefined, startsAt: input.startsAt, endsAt: input.endsAt }, id); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.rescheduled', entityType: 'Appointment', entityId: id }); return updated;
   }
   async updateStatus(user: SessionUser, id: string, status: AppointmentStatus) {
     const clinicId = requireWriter(user);
@@ -46,12 +49,15 @@ export class AppointmentsService {
     if (!result.count) throw new NotFoundException('Cita no encontrada');
     const updated = await this.prisma.appointment.findUniqueOrThrow({ where: { id } }); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.status_changed', entityType: 'Appointment', entityId: id, metadata: { status } }); return updated;
   }
-  private async reserve(tenantId: string, clinicId: string, input: { patientId: string; professionalId: string; roomId?: string; startsAt: string; endsAt: string }, replaceId?: string) {
+  private async reserve(tenantId: string, clinicId: string, input: { patientId: string; professionalId: string; serviceId?: string; roomId?: string; startsAt: string; endsAt: string }, replaceId?: string) {
     const startsAt = new Date(input.startsAt), endsAt = new Date(input.endsAt);
     if (!(startsAt < endsAt)) throw new ConflictException('El intervalo de la cita no es válido');
     return this.prisma.$transaction(async tx => {
       const [patient, professional] = await Promise.all([tx.patient.findFirst({ where: { id: input.patientId, tenantId, clinicId } }), tx.professional.findFirst({ where: { id: input.professionalId, tenantId, clinicId, active: true } })]);
       if (!patient || !professional) throw new NotFoundException('Paciente o profesional no encontrado');
+      const service = input.serviceId ? await tx.service.findFirst({ where: { id: input.serviceId, tenantId, clinicId, active: true } }) : null;
+      if (input.serviceId && !service) throw new NotFoundException('Tratamiento no encontrado');
+      if (service && endsAt.getTime() - startsAt.getTime() !== service.durationMinutes * 60000) throw new ConflictException(`La duración de esta cita debe ser de ${service.durationMinutes} minutos según el tratamiento`);
       const room = input.roomId ? await tx.room.findFirst({ where: { id: input.roomId, tenantId, clinicId, active: true } }) : null;
       if (input.roomId && !room) throw new NotFoundException('Gabinete no encontrado');
       const [clinic, rules, timeOff] = await Promise.all([
@@ -67,9 +73,9 @@ export class AppointmentsService {
       const clash = await tx.appointment.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
       if (clash) throw new ConflictException('El profesional ya tiene una cita en ese horario');
       if (room && await tx.appointment.findFirst({ where: { tenantId, clinicId, roomId: room.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } })) throw new ConflictException('El gabinete ya está reservado en ese horario');
-      if (replaceId) return tx.appointment.update({ where: { id: replaceId }, data: { professionalId: professional.id, roomId: room?.id, startsAt, endsAt, status: 'SCHEDULED' } });
-      const appointment = await tx.appointment.create({ data: { tenantId, clinicId, patientId: patient.id, professionalId: professional.id, roomId: room?.id, startsAt, endsAt } });
-      await tx.automationEvent.create({ data: { tenantId, clinicId, type: 'appointment.created', payload: { appointmentId: appointment.id, patientId: patient.id, professionalId: professional.id, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() } } });
+      if (replaceId) return tx.appointment.update({ where: { id: replaceId }, data: { professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt, status: 'SCHEDULED' } });
+      const appointment = await tx.appointment.create({ data: { tenantId, clinicId, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt } });
+      await tx.automationEvent.create({ data: { tenantId, clinicId, type: 'appointment.created', payload: { appointmentId: appointment.id, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() } } });
       return appointment;
     });
   }

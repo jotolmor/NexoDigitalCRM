@@ -309,6 +309,7 @@ model Service {
   tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clinic          Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   professionals   ProfessionalService[]
+  appointments    Appointment[]
   @@unique([clinicId, name])
   @@index([tenantId, clinicId])
 }
@@ -328,6 +329,7 @@ model Appointment {
   patientId String
   professionalId String
   roomId String?
+  serviceId String?
   startsAt  DateTime
   endsAt    DateTime
   status    AppointmentStatus @default(SCHEDULED)
@@ -337,6 +339,7 @@ model Appointment {
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Restrict)
   room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   followUps FollowUp[]
   @@index([tenantId, startsAt])
   @@index([clinicId, startsAt])

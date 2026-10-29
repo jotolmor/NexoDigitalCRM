@@ -8,6 +8,12 @@ export class CatalogService {
   createProfessional(user: SessionUser, input: { firstName: string; lastName: string; specialty: string; email?: string; phone?: string }) { const clinicId = requireWriter(user); return this.prisma.professional.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
   listServices(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.service.findMany({ where: { tenantId: user.tenantId, clinicId }, orderBy: { name: 'asc' } }); }
   createService(user: SessionUser, input: { name: string; description?: string; durationMinutes: number; priceEuros?: number }) { const clinicId = requireWriter(user); return this.prisma.service.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
+  async updateServiceDuration(user: SessionUser, id: string, durationMinutes: number) {
+    const clinicId = requireWriter(user);
+    const result = await this.prisma.service.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: { durationMinutes } });
+    if (!result.count) throw new NotFoundException('Tratamiento no encontrado');
+    return this.prisma.service.findFirstOrThrow({ where: { id, tenantId: user.tenantId, clinicId } });
+  }
   async assignService(user: SessionUser, professionalId: string, serviceId: string) {
     const clinicId = requireWriter(user);
     const [professional, service] = await Promise.all([this.prisma.professional.findFirst({ where: { id: professionalId, tenantId: user.tenantId, clinicId } }), this.prisma.service.findFirst({ where: { id: serviceId, tenantId: user.tenantId, clinicId } })]);
