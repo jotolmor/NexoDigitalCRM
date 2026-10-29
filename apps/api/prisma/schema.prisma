@@ -276,9 +276,11 @@ model ScheduleRule {
   weekday        Int
   startsAtMinute Int
   endsAtMinute   Int
+  validFrom      DateTime @default(now()) @db.Date
+  validTo        DateTime @db.Date
   active         Boolean  @default(true)
   professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  @@index([tenantId, clinicId, professionalId, weekday])
+  @@index([tenantId, clinicId, professionalId, weekday, validFrom, validTo], map: "schedule_rule_tenant_quarter_idx")
 }
 
 model TimeOff {

@@ -89,3 +89,5 @@ Las rutas siguientes requieren un JWT obtenido en `/api/auth/login` o `/api/auth
 - `POST /api/professionals/:professionalId/services/:serviceId`: asigna un servicio de la misma clínica a un profesional.
 
 Solo propietario, director, recepción y personal administrativo pueden crear o asociar recursos. Las rutas rechazan identificadores de otra clínica.
+
+Los horarios semanales se configuran por trimestre y profesional. Cada tramo se repite en su día de la semana solo dentro de las fechas de vigencia seleccionadas; el calendario trimestral calcula la disponibilidad usando esos tramos, las citas y las ausencias.

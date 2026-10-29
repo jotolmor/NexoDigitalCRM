@@ -39,13 +39,14 @@ export class AppointmentsService {
       ]);
       if (timeOff) throw new ConflictException('El profesional no está disponible por una ausencia');
       if (rules.length) {
-        const parts = new Intl.DateTimeFormat('en-US', { timeZone: clinic.timezone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(startsAt);
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: clinic.timezone, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(startsAt);
         const weekdays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
         const weekday = weekdays[parts.find(x => x.type === 'weekday')?.value ?? ''];
+        const localDate = `${parts.find(x => x.type === 'year')?.value}-${parts.find(x => x.type === 'month')?.value}-${parts.find(x => x.type === 'day')?.value}`;
         const hour = Number(parts.find(x => x.type === 'hour')?.value ?? 0), minute = Number(parts.find(x => x.type === 'minute')?.value ?? 0);
         const localStart = hour * 60 + minute;
         const localEnd = localStart + Math.round((endsAt.getTime() - startsAt.getTime()) / 60000);
-        if (!rules.some(x => x.weekday === weekday && x.startsAtMinute <= localStart && x.endsAtMinute >= localEnd)) throw new ConflictException('La cita queda fuera del horario del profesional');
+        if (!rules.some(x => x.weekday === weekday && x.validFrom.toISOString().slice(0, 10) <= localDate && x.validTo.toISOString().slice(0, 10) >= localDate && x.startsAtMinute <= localStart && x.endsAtMinute >= localEnd)) throw new ConflictException('La cita queda fuera del horario vigente del profesional');
       }
       const clash = await tx.appointment.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
       if (clash) throw new ConflictException('El profesional ya tiene una cita en ese horario');

@@ -25,7 +25,7 @@ export class DashboardService {
     const windowStart = new Date(Date.UTC(year - 1, 11, 30));
     const windowEnd = new Date(Date.UTC(year + 1, 0, 3));
     const [professionals, appointments, timeOffs] = await Promise.all([
-      this.prisma.professional.findMany({ where: { tenantId: user.tenantId, clinicId, active: true }, select: { id: true, scheduleRules: { where: { active: true }, select: { weekday: true, startsAtMinute: true, endsAtMinute: true } } } }),
+      this.prisma.professional.findMany({ where: { tenantId: user.tenantId, clinicId, active: true }, select: { id: true, scheduleRules: { where: { active: true }, select: { weekday: true, startsAtMinute: true, endsAtMinute: true, validFrom: true, validTo: true } } } }),
       this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId, startsAt: { lt: windowEnd }, endsAt: { gt: windowStart }, status: { not: 'CANCELLED' } }, select: { professionalId: true, startsAt: true, endsAt: true } }),
       this.prisma.timeOff.findMany({ where: { tenantId: user.tenantId, clinicId, startsAt: { lt: windowEnd }, endsAt: { gt: windowStart } }, select: { professionalId: true, startsAt: true, endsAt: true } })
     ]);
@@ -40,7 +40,7 @@ export class DashboardService {
       const appointmentsByDate = this.groupIntervals(appointments.filter(x => x.professionalId === professional.id), clinic.timezone);
       const timeOffByDate = this.groupIntervals(timeOffs.filter(x => x.professionalId === professional.id), clinic.timezone);
       for (const [date, weekday] of weekdayByDate) {
-        const schedule = this.merge(professional.scheduleRules.filter(rule => rule.weekday === weekday).map(rule => ({ start: rule.startsAtMinute, end: rule.endsAtMinute })));
+        const schedule = this.merge(professional.scheduleRules.filter(rule => rule.weekday === weekday && this.dateKey(rule.validFrom) <= date && this.dateKey(rule.validTo) >= date).map(rule => ({ start: rule.startsAtMinute, end: rule.endsAtMinute })));
         if (!schedule.length) continue;
         const row = records.get(date)!;
         row.totalMinutes += schedule.reduce((sum, range) => sum + range.end - range.start, 0);
