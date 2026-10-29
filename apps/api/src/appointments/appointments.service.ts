@@ -8,6 +8,28 @@ import { AuditService } from '../audit/audit.service';
 export class AppointmentsService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
   list(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId }, include: { patient: true, professional: true }, orderBy: { startsAt: 'asc' } }); }
+  async availability(user: SessionUser, professionalId: string, durationMinutes: number) {
+    const clinicId = requireClinic(user);
+    const professional = await this.prisma.professional.findFirst({ where: { id: professionalId, tenantId: user.tenantId, clinicId, active: true }, select: { id: true } });
+    if (!professional) throw new NotFoundException('Profesional no encontrado');
+    const clinic = await this.prisma.clinic.findFirstOrThrow({ where: { id: clinicId, tenantId: user.tenantId }, select: { timezone: true } });
+    const from = new Date(Math.ceil(Date.now() / 900000) * 900000); const until = new Date(from.getTime() + 45 * 86400000);
+    const [rules, appointments, timeOffs] = await Promise.all([
+      this.prisma.scheduleRule.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, active: true } }),
+      this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: until }, endsAt: { gt: from } }, select: { startsAt: true, endsAt: true } }),
+      this.prisma.timeOff.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, startsAt: { lt: until }, endsAt: { gt: from } }, select: { startsAt: true, endsAt: true } })
+    ]);
+    const slots: { startsAt: string; endsAt: string; localStart: string; localEnd: string }[] = [];
+    for (let timestamp = from.getTime(); timestamp + durationMinutes * 60000 <= until.getTime() && slots.length < 12; timestamp += 15 * 60000) {
+      const startsAt = new Date(timestamp), endsAt = new Date(timestamp + durationMinutes * 60000);
+      const localStart = this.localParts(startsAt, clinic.timezone), localEnd = this.localParts(endsAt, clinic.timezone);
+      const weekday = new Date(`${localStart.date}T00:00:00Z`).getUTCDay();
+      if (localStart.date !== localEnd.date || !rules.some(rule => rule.weekday === weekday && rule.validFrom.toISOString().slice(0, 10) <= localStart.date && rule.validTo.toISOString().slice(0, 10) >= localStart.date && rule.startsAtMinute <= localStart.minute && rule.endsAtMinute >= localEnd.minute)) continue;
+      if (appointments.some(item => item.startsAt < endsAt && item.endsAt > startsAt) || timeOffs.some(item => item.startsAt < endsAt && item.endsAt > startsAt)) continue;
+      slots.push({ startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), localStart: `${localStart.date} ${this.formatMinute(localStart.minute)}`, localEnd: this.formatMinute(localEnd.minute) });
+    }
+    return { professionalId, durationMinutes, timezone: clinic.timezone, firstAvailable: slots[0] ?? null, slots, searchedUntil: until.toISOString() };
+  }
   async create(user: SessionUser, input: { patientId: string; professionalId: string; roomId?: string; startsAt: string; endsAt: string }) {
     const clinicId = requireWriter(user); const appointment = await this.reserve(user.tenantId, clinicId, input); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.created', entityType: 'Appointment', entityId: appointment.id }); return appointment;
   }
@@ -38,16 +60,10 @@ export class AppointmentsService {
         tx.timeOff.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } })
       ]);
       if (timeOff) throw new ConflictException('El profesional no está disponible por una ausencia');
-      if (rules.length) {
-        const parts = new Intl.DateTimeFormat('en-US', { timeZone: clinic.timezone, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(startsAt);
-        const weekdays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-        const weekday = weekdays[parts.find(x => x.type === 'weekday')?.value ?? ''];
-        const localDate = `${parts.find(x => x.type === 'year')?.value}-${parts.find(x => x.type === 'month')?.value}-${parts.find(x => x.type === 'day')?.value}`;
-        const hour = Number(parts.find(x => x.type === 'hour')?.value ?? 0), minute = Number(parts.find(x => x.type === 'minute')?.value ?? 0);
-        const localStart = hour * 60 + minute;
-        const localEnd = localStart + Math.round((endsAt.getTime() - startsAt.getTime()) / 60000);
-        if (!rules.some(x => x.weekday === weekday && x.validFrom.toISOString().slice(0, 10) <= localDate && x.validTo.toISOString().slice(0, 10) >= localDate && x.startsAtMinute <= localStart && x.endsAtMinute >= localEnd)) throw new ConflictException('La cita queda fuera del horario vigente del profesional');
-      }
+      const startLocal = this.localParts(startsAt, clinic.timezone), endLocal = this.localParts(endsAt, clinic.timezone);
+      const weekday = new Date(`${startLocal.date}T00:00:00Z`).getUTCDay();
+      if (!rules.length) throw new ConflictException('El profesional todavía no tiene un horario configurado');
+      if (startLocal.date !== endLocal.date || !rules.some(x => x.weekday === weekday && x.validFrom.toISOString().slice(0, 10) <= startLocal.date && x.validTo.toISOString().slice(0, 10) >= startLocal.date && x.startsAtMinute <= startLocal.minute && x.endsAtMinute >= endLocal.minute)) throw new ConflictException('La cita queda fuera del horario vigente del profesional');
       const clash = await tx.appointment.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
       if (clash) throw new ConflictException('El profesional ya tiene una cita en ese horario');
       if (room && await tx.appointment.findFirst({ where: { tenantId, clinicId, roomId: room.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } })) throw new ConflictException('El gabinete ya está reservado en ese horario');
@@ -57,4 +73,11 @@ export class AppointmentsService {
       return appointment;
     });
   }
+
+  private localParts(date: Date, timezone: string) {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+    const value = (type: string) => parts.find(item => item.type === type)?.value ?? '00';
+    return { date: `${value('year')}-${value('month')}-${value('day')}`, minute: Number(value('hour')) * 60 + Number(value('minute')) };
+  }
+  private formatMinute(minute: number) { return `${String(Math.floor(minute / 60) % 24).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`; }
 }
