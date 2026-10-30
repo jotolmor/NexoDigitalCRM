@@ -17,6 +17,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 import { ConsentsModule } from './consents/consents.module';
 import { DocumentsModule } from './documents/documents.module';
 import { HealthModule } from './health/health.module';
+import { AssistantModule } from './assistant/assistant.module';
 
-@Module({ imports: [PrismaModule, HealthModule, AuditModule, AuthModule, ClinicsModule, DashboardModule, PatientsModule, CatalogModule, MembersModule, AppointmentsModule, FollowUpsModule, ReportsModule, NotificationsModule, SchedulingModule, RoomsModule, WaitlistModule, ConsentsModule, DocumentsModule] })
+@Module({ imports: [PrismaModule, HealthModule, AssistantModule, AuditModule, AuthModule, ClinicsModule, DashboardModule, PatientsModule, CatalogModule, MembersModule, AppointmentsModule, FollowUpsModule, ReportsModule, NotificationsModule, SchedulingModule, RoomsModule, WaitlistModule, ConsentsModule, DocumentsModule] })
 export class AppModule {}
