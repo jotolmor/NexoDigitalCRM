@@ -27,7 +27,7 @@ export class AppointmentsService {
       const startsAt = new Date(timestamp), endsAt = new Date(timestamp + durationMinutes * 60000);
       const localStart = this.localParts(startsAt, clinic.timezone), localEnd = this.localParts(endsAt, clinic.timezone);
       const weekday = new Date(`${localStart.date}T00:00:00Z`).getUTCDay();
-      if (localStart.date !== localEnd.date || !rules.some(rule => rule.weekday === weekday && rule.validFrom.toISOString().slice(0, 10) <= localStart.date && rule.validTo.toISOString().slice(0, 10) >= localStart.date && rule.startsAtMinute <= localStart.minute && rule.endsAtMinute >= localEnd.minute)) continue;
+      if (localStart.date !== localEnd.date || weekday < 1 || weekday > 5 || !rules.some(rule => rule.weekday === weekday && rule.validFrom.toISOString().slice(0, 10) <= localStart.date && rule.validTo.toISOString().slice(0, 10) >= localStart.date && rule.startsAtMinute <= localStart.minute && rule.endsAtMinute >= localEnd.minute)) continue;
       if (appointments.some(item => item.startsAt < endsAt && item.endsAt > startsAt) || timeOffs.some(item => item.startsAt < endsAt && item.endsAt > startsAt)) continue;
       slots.push({ startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), localStart: `${localStart.date} ${this.formatMinute(localStart.minute)}`, localEnd: this.formatMinute(localEnd.minute) });
     }
@@ -69,7 +69,7 @@ export class AppointmentsService {
       const startLocal = this.localParts(startsAt, clinic.timezone), endLocal = this.localParts(endsAt, clinic.timezone);
       const weekday = new Date(`${startLocal.date}T00:00:00Z`).getUTCDay();
       if (!rules.length) throw new ConflictException('El profesional todavía no tiene un horario configurado');
-      if (startLocal.date !== endLocal.date || !rules.some(x => x.weekday === weekday && x.validFrom.toISOString().slice(0, 10) <= startLocal.date && x.validTo.toISOString().slice(0, 10) >= startLocal.date && x.startsAtMinute <= startLocal.minute && x.endsAtMinute >= endLocal.minute)) throw new ConflictException('La cita queda fuera del horario vigente del profesional');
+      if (startLocal.date !== endLocal.date || weekday < 1 || weekday > 5 || !rules.some(x => x.weekday === weekday && x.validFrom.toISOString().slice(0, 10) <= startLocal.date && x.validTo.toISOString().slice(0, 10) >= startLocal.date && x.startsAtMinute <= startLocal.minute && x.endsAtMinute >= endLocal.minute)) throw new ConflictException('La cita queda fuera del horario vigente del profesional. La jornada ordinaria es de lunes a viernes.');
       const clash = await tx.appointment.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
       if (clash) throw new ConflictException('El profesional ya tiene una cita en ese horario');
       if (room && await tx.appointment.findFirst({ where: { tenantId, clinicId, roomId: room.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } })) throw new ConflictException('El gabinete ya está reservado en ese horario');

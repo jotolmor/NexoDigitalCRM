@@ -16,8 +16,11 @@ export class SchedulingService {
 
   async addRule(user: SessionUser, x: { professionalId: string; weekday: number; startsAtMinute: number; endsAtMinute: number; validFrom: string; validTo: string }) {
     const clinicId = requireWriter(user);
-    if (x.weekday < 0 || x.weekday > 6 || x.startsAtMinute < 0 || x.endsAtMinute > 1440 || x.endsAtMinute - x.startsAtMinute !== 240 || x.startsAtMinute % 15 !== 0 || x.validFrom > x.validTo) {
-      throw new ConflictException('Cada turno debe durar exactamente 4 horas y empezar en un intervalo de 15 minutos');
+    const duration = x.endsAtMinute - x.startsAtMinute;
+    const morning = x.startsAtMinute >= 540 && x.startsAtMinute < 780 && x.endsAtMinute >= 780 && x.endsAtMinute <= 840;
+    const afternoon = x.startsAtMinute >= 960 && x.startsAtMinute < 1200 && x.endsAtMinute >= 1200 && x.endsAtMinute <= 1260;
+    if (x.weekday < 1 || x.weekday > 5 || x.startsAtMinute % 15 !== 0 || x.endsAtMinute % 15 !== 0 || duration < 240 || duration > 300 || (!morning && !afternoon) || x.validFrom > x.validTo) {
+      throw new ConflictException('Los turnos son de lunes a viernes: mañana 09:00–13:00 (con hasta 1 hora de extensión) o tarde 16:00–20:00 (con hasta 1 hora de extensión), en intervalos de 15 minutos');
     }
     const professional = await this.prisma.professional.findFirst({ where: { id: x.professionalId, tenantId: user.tenantId, clinicId } });
     if (!professional) throw new NotFoundException('Profesional no encontrado');
