@@ -8,7 +8,7 @@ import { AuditService } from '../audit/audit.service';
 export class AppointmentsService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
   list(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId }, include: { patient: true, professional: true, service: true, room: true }, orderBy: { startsAt: 'asc' } }); }
-  async availability(user: SessionUser, professionalId: string, serviceId: string) {
+  async availability(user: SessionUser, professionalId: string, serviceId: string, excludeAppointmentId?: string) {
     const clinicId = requireClinic(user);
     const professional = await this.prisma.professional.findFirst({ where: { id: professionalId, tenantId: user.tenantId, clinicId, active: true }, select: { id: true } });
     if (!professional) throw new NotFoundException('Profesional no encontrado');
@@ -19,7 +19,7 @@ export class AppointmentsService {
     const from = new Date(Math.ceil(Date.now() / 900000) * 900000); const until = new Date(from.getTime() + 45 * 86400000);
     const [rules, appointments, timeOffs] = await Promise.all([
       this.prisma.scheduleRule.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, active: true } }),
-      this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: until }, endsAt: { gt: from } }, select: { startsAt: true, endsAt: true } }),
+      this.prisma.appointment.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: until }, endsAt: { gt: from } }, select: { startsAt: true, endsAt: true } }),
       this.prisma.timeOff.findMany({ where: { tenantId: user.tenantId, clinicId, professionalId, startsAt: { lt: until }, endsAt: { gt: from } }, select: { startsAt: true, endsAt: true } })
     ]);
     const slots: { startsAt: string; endsAt: string; localStart: string; localEnd: string }[] = [];
