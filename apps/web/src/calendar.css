@@ -35,3 +35,26 @@
 .quarter-card:nth-child(4n+4){--quarter-color:#4f46e5}
 .shift-kind{background:#e0e7ff;color:#4338ca}
 .shift-kind.afternoon{background:#ccfbf1;color:#0f766e}
+
+/* Premium treatment-duration cards */
+.treatment-duration-page{gap:22px}
+.treatment-duration-page>header{margin-bottom:4px}
+.treatment-intro{position:relative;overflow:hidden;align-items:center;min-height:104px;padding:22px 26px;border:1px solid #c7d2fe;border-radius:18px;background:linear-gradient(112deg,#eef2ff 0%,#fff 64%,#f0fdfa 100%);box-shadow:0 10px 30px rgb(79 70 229 / 7%)}
+.treatment-intro::after{content:"";position:absolute;right:-38px;top:-70px;width:190px;height:190px;border:1px solid rgb(20 184 166 / 22%);border-radius:50%;box-shadow:0 0 0 20px rgb(20 184 166 / 5%),0 0 0 42px rgb(79 70 229 / 4%);pointer-events:none}
+.treatment-intro>span{z-index:1;display:grid;place-items:center;flex:0 0 52px;height:52px;border:1px solid #c7d2fe;border-radius:16px;background:#fff;color:#4f46e5;font-size:1.55rem;box-shadow:0 5px 14px rgb(79 70 229 / 10%)}
+.treatment-intro>div{z-index:1}.treatment-intro b{color:#0f172a;font-size:1.02rem}.treatment-intro p{max-width:720px;color:#64748b;line-height:1.55}
+.treatment-duration-list{gap:13px}
+.treatment-duration-card{position:relative;grid-template-columns:minmax(0,1fr) minmax(220px,290px) minmax(170px,190px);gap:24px;min-height:112px;padding:21px 24px 21px 27px;border:1px solid #e2e8f0;border-radius:16px;background:linear-gradient(105deg,#fff,#fff 70%,#f8fafc);box-shadow:0 5px 18px rgb(15 23 42 / 4%);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.treatment-duration-card::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:4px;border-radius:0 5px 5px 0;background:linear-gradient(#4f46e5,#14b8a6)}
+.treatment-duration-card:hover{transform:translateY(-2px);border-color:#c7d2fe;box-shadow:0 12px 28px rgb(79 70 229 / 9%)}
+.treatment-name{gap:7px}.treatment-name b{color:#0f172a;font-size:1.04rem;letter-spacing:-.02em}.treatment-name span{color:#64748b;font-size:.88rem}
+.treatment-duration-card label{display:grid;grid-template-columns:1fr;align-content:center;gap:7px;min-width:0;color:#64748b;font-size:.78rem;font-weight:750;letter-spacing:.025em;text-transform:uppercase}
+.treatment-duration-card select{display:block;width:100%;min-width:0;height:46px;padding:0 38px 0 13px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#0f172a;font-size:.9rem;font-weight:650;letter-spacing:normal;text-transform:none;box-shadow:inset 0 1px 2px rgb(15 23 42 / 3%)}
+.treatment-duration-card select:focus{border-color:#4f46e5;outline:3px solid rgb(79 70 229 / 13%)}
+.treatment-duration-card button{width:100%;min-height:46px;align-self:center;border-color:#c7d2fe;background:#eef2ff;color:#4338ca}
+.treatment-duration-card button:hover:not(:disabled){border-color:#4f46e5;background:#4f46e5;color:#fff}
+.treatment-duration-card button:disabled{border-color:#e2e8f0;background:#f8fafc;color:#94a3b8;opacity:1}
+.treatment-duration-page>.success,.treatment-duration-page>.error{width:100%;padding:12px 15px;border:1px solid #bbf7d0;border-radius:11px;background:#f0fdf4;color:#15803d}
+.treatment-duration-page>.error{border-color:#fecaca;background:#fef2f2;color:#dc2626}
+@media(max-width:900px){.treatment-duration-card{grid-template-columns:minmax(0,1fr) minmax(200px,260px);gap:14px 20px}.treatment-duration-card button{grid-column:2}}
+@media(max-width:600px){.treatment-intro{align-items:flex-start;padding:18px}.treatment-intro>span{flex-basis:44px;height:44px}.treatment-duration-card{grid-template-columns:minmax(0,1fr);gap:14px;padding:20px 18px 20px 22px}.treatment-duration-card label,.treatment-duration-card button{grid-column:1}.treatment-duration-card button{width:100%}}
