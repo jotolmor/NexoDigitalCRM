@@ -73,6 +73,7 @@ model Clinic {
   tenantId  String
   name      String
   specialty String
+  address   String?
   businessType String @default("CLINIC")
   terminology  Json?
   timezone  String   @default("Europe/Madrid")
