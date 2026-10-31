@@ -40,6 +40,22 @@ export class SchedulingService {
     });
   }
 
+  async updateRule(user: SessionUser, id: string, x: { professionalId: string; weekday: number; startsAtMinute: number; endsAtMinute: number; validFrom: string; validTo: string }) {
+    const clinicId = requireWriter(user);
+    const current = await this.prisma.scheduleRule.findFirst({ where: { id, tenantId: user.tenantId, clinicId } });
+    if (!current) throw new NotFoundException('Turno no encontrado');
+    const duration = x.endsAtMinute - x.startsAtMinute;
+    const morning = x.startsAtMinute >= 540 && x.startsAtMinute <= 780 && x.startsAtMinute % 60 === 0 && x.endsAtMinute <= 840;
+    const afternoon = x.startsAtMinute >= 960 && x.startsAtMinute <= 1200 && x.startsAtMinute % 60 === 0 && x.endsAtMinute <= 1260;
+    if (x.weekday < 1 || x.weekday > 5 || x.endsAtMinute % 15 !== 0 || duration < 15 || duration > 300 || (!morning && !afternoon) || x.endsAtMinute <= x.startsAtMinute || x.validFrom > x.validTo) throw new ConflictException('El horario no es válido');
+    const professional = await this.prisma.professional.findFirst({ where: { id: x.professionalId, tenantId: user.tenantId, clinicId } });
+    if (!professional) throw new NotFoundException('Profesional no encontrado');
+    const overlaps = await this.prisma.scheduleRule.findMany({ where: { id: { not: id }, tenantId: user.tenantId, clinicId, professionalId: x.professionalId, weekday: x.weekday, active: true, validFrom: { lte: new Date(x.validTo) }, validTo: { gte: new Date(x.validFrom) } } });
+    if (overlaps.some(rule => x.startsAtMinute < rule.endsAtMinute && x.endsAtMinute > rule.startsAtMinute)) throw new ConflictException('Este turno se solapa con otro horario asignado al profesional');
+    await this.prisma.scheduleRule.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: { professionalId: x.professionalId, weekday: x.weekday, startsAtMinute: x.startsAtMinute, endsAtMinute: x.endsAtMinute, validFrom: new Date(x.validFrom), validTo: new Date(x.validTo) } });
+    return this.prisma.scheduleRule.findFirstOrThrow({ where: { id, tenantId: user.tenantId, clinicId } });
+  }
+
   async addTimeOff(user: SessionUser, x: { professionalId: string; startsAt: string; endsAt: string; reason?: string }) {
     const clinicId = requireWriter(user);
     const startsAt = new Date(x.startsAt), endsAt = new Date(x.endsAt);

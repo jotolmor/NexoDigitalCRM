@@ -6,9 +6,15 @@ export class CatalogService {
   constructor(private prisma: PrismaService) {}
   listProfessionals(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.professional.findMany({ where: { tenantId: user.tenantId, clinicId }, include: { services: { include: { service: true } } }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }); }
   createProfessional(user: SessionUser, input: { firstName: string; lastName: string; specialty: string; email?: string; phone?: string }) { const clinicId = requireWriter(user); return this.prisma.professional.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
+  async updateProfessional(user: SessionUser, id: string, input: { firstName: string; lastName: string; specialty: string; email?: string; phone?: string }) {
+    const clinicId = requireWriter(user);
+    const result = await this.prisma.professional.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: input });
+    if (!result.count) throw new NotFoundException('Profesional no encontrado');
+    return this.prisma.professional.findFirstOrThrow({ where: { id, tenantId: user.tenantId, clinicId }, include: { services: { include: { service: true } } } });
+  }
   listServices(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.service.findMany({ where: { tenantId: user.tenantId, clinicId }, orderBy: { name: 'asc' } }); }
   createService(user: SessionUser, input: { name: string; description?: string; durationMinutes: number; priceEuros?: number }) { const clinicId = requireWriter(user); return this.prisma.service.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
-  async updateService(user: SessionUser, id: string, input: { name: string; description?: string | null; priceEuros?: number | null }) {
+  async updateService(user: SessionUser, id: string, input: { name: string; description?: string | null; durationMinutes?: number; priceEuros?: number | null }) {
     const clinicId = requireWriter(user);
     const result = await this.prisma.service.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: input });
     if (!result.count) throw new NotFoundException('Tratamiento no encontrado');
