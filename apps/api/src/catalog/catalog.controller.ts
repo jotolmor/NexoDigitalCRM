@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { IsEmail, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionUser } from '../common/access';
 import { CatalogService } from './catalog.service';
 class ProfessionalDto { @IsString() @MinLength(1) firstName!: string; @IsString() @MinLength(1) lastName!: string; @IsString() @MinLength(2) specialty!: string; @IsOptional() @IsEmail() email?: string; @IsOptional() @IsString() phone?: string; }
-class ServiceDto { @IsString() @MinLength(2) name!: string; @IsOptional() @IsString() description?: string; @IsInt() @Min(5) @Max(480) durationMinutes!: number; @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) priceEuros?: number; }
-class ServiceDurationDto { @IsInt() @Min(5) @Max(480) durationMinutes!: number; }
+class ServiceDto { @IsString() @MinLength(2) name!: string; @IsOptional() @IsString() description?: string; @IsInt() @IsIn([15, 30, 60]) durationMinutes!: number; @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) priceEuros?: number; }
+class ServiceDurationDto { @IsInt() @IsIn([15, 30, 60]) durationMinutes!: number; }
 @Controller() @UseGuards(JwtAuthGuard)
 export class CatalogController {
   constructor(private catalog: CatalogService) {}
