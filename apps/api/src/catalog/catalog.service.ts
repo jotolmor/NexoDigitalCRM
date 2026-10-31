@@ -8,6 +8,12 @@ export class CatalogService {
   createProfessional(user: SessionUser, input: { firstName: string; lastName: string; specialty: string; email?: string; phone?: string }) { const clinicId = requireWriter(user); return this.prisma.professional.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
   listServices(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.service.findMany({ where: { tenantId: user.tenantId, clinicId }, orderBy: { name: 'asc' } }); }
   createService(user: SessionUser, input: { name: string; description?: string; durationMinutes: number; priceEuros?: number }) { const clinicId = requireWriter(user); return this.prisma.service.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
+  async updateService(user: SessionUser, id: string, input: { name: string; description?: string | null; priceEuros?: number | null }) {
+    const clinicId = requireWriter(user);
+    const result = await this.prisma.service.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: input });
+    if (!result.count) throw new NotFoundException('Tratamiento no encontrado');
+    return this.prisma.service.findFirstOrThrow({ where: { id, tenantId: user.tenantId, clinicId } });
+  }
   async updateServiceDuration(user: SessionUser, id: string, durationMinutes: number) {
     const clinicId = requireWriter(user);
     const result = await this.prisma.service.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: { durationMinutes } });

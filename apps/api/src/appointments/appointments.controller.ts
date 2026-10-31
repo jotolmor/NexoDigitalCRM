@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionUser } from '../common/access';
 import { AppointmentsService } from './appointments.service';
 class CreateAppointmentDto { @IsString() patientId!: string; @IsString() professionalId!: string; @IsString() serviceId!: string; @IsOptional() @IsString() roomId?: string; @IsISO8601() startsAt!: string; @IsISO8601() endsAt!: string; }
-class RescheduleDto { @IsISO8601() startsAt!: string; @IsISO8601() endsAt!: string; @IsOptional() @IsString() professionalId?: string; @IsOptional() @IsString() serviceId?: string; @IsOptional() @IsString() roomId?: string; }
+class RescheduleDto { @IsISO8601() startsAt!: string; @IsISO8601() endsAt!: string; @IsOptional() @IsString() patientId?: string; @IsOptional() @IsString() professionalId?: string; @IsOptional() @IsString() serviceId?: string; @IsOptional() @IsString() roomId?: string; }
 class StatusDto { @IsEnum(AppointmentStatus) status!: AppointmentStatus; }
 class AvailabilityQuery { @IsString() professionalId!: string; @IsString() serviceId!: string; }
 @Controller('appointments') @UseGuards(JwtAuthGuard)

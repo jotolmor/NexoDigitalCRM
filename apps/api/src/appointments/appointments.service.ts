@@ -36,12 +36,12 @@ export class AppointmentsService {
   async create(user: SessionUser, input: { patientId: string; professionalId: string; serviceId?: string; roomId?: string; startsAt: string; endsAt: string }) {
     const clinicId = requireWriter(user); const appointment = await this.reserve(user.tenantId, clinicId, input); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.created', entityType: 'Appointment', entityId: appointment.id }); return appointment;
   }
-  async reschedule(user: SessionUser, id: string, input: { startsAt: string; endsAt: string; professionalId?: string; serviceId?: string; roomId?: string }) {
+  async reschedule(user: SessionUser, id: string, input: { startsAt: string; endsAt: string; patientId?: string; professionalId?: string; serviceId?: string; roomId?: string }) {
     const clinicId = requireWriter(user);
     const appointment = await this.prisma.appointment.findFirst({ where: { id, tenantId: user.tenantId, clinicId } });
     if (!appointment) throw new NotFoundException('Cita no encontrada');
     if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(appointment.status)) throw new ConflictException('Esta cita no puede reprogramarse');
-    const updated = await this.reserve(user.tenantId, clinicId, { patientId: appointment.patientId, professionalId: input.professionalId ?? appointment.professionalId, serviceId: input.serviceId ?? appointment.serviceId ?? undefined, roomId: input.roomId ?? appointment.roomId ?? undefined, startsAt: input.startsAt, endsAt: input.endsAt }, id); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.rescheduled', entityType: 'Appointment', entityId: id }); return updated;
+    const updated = await this.reserve(user.tenantId, clinicId, { patientId: input.patientId ?? appointment.patientId, professionalId: input.professionalId ?? appointment.professionalId, serviceId: input.serviceId ?? appointment.serviceId ?? undefined, roomId: input.roomId ?? appointment.roomId ?? undefined, startsAt: input.startsAt, endsAt: input.endsAt }, id); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.rescheduled', entityType: 'Appointment', entityId: id }); return updated;
   }
   async updateStatus(user: SessionUser, id: string, status: AppointmentStatus) {
     const clinicId = requireWriter(user);
@@ -73,7 +73,7 @@ export class AppointmentsService {
       const clash = await tx.appointment.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
       if (clash) throw new ConflictException('El profesional ya tiene una cita en ese horario');
       if (room && await tx.appointment.findFirst({ where: { tenantId, clinicId, roomId: room.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } })) throw new ConflictException('El gabinete ya está reservado en ese horario');
-      if (replaceId) return tx.appointment.update({ where: { id: replaceId }, data: { professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt, status: 'SCHEDULED' } });
+      if (replaceId) return tx.appointment.update({ where: { id: replaceId }, data: { patientId: patient.id, professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt, status: 'SCHEDULED' } });
       const appointment = await tx.appointment.create({ data: { tenantId, clinicId, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt } });
       await tx.automationEvent.create({ data: { tenantId, clinicId, type: 'appointment.created', payload: { appointmentId: appointment.id, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() } } });
       return appointment;
