@@ -1,0 +1,2 @@
+ALTER TABLE "Patient" ADD COLUMN "address" TEXT;
+ALTER TABLE "Patient" ADD COLUMN "city" TEXT;

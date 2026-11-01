@@ -206,6 +206,8 @@ model Patient {
   lastName  String
   email     String?
   phone     String?
+  address   String?
+  city      String?
   createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)

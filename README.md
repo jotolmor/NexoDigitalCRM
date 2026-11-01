@@ -44,6 +44,25 @@ Para ejecutar el conjunto completo en contenedores:
 docker compose up --build
 ```
 
+### Datos de demostración
+
+Para reemplazar los registros operativos de una sola clínica por un conjunto ficticio de Sevilla, ejecuta el seed desde una base local después de aplicar las migraciones:
+
+```bash
+DATABASE_URL="postgresql://nexoclinic:nexoclinic_dev_password@localhost:5432/nexoclinic?schema=public" npm run prisma:deploy -w @nexoclinic/api
+DATABASE_URL="postgresql://nexoclinic:nexoclinic_dev_password@localhost:5432/nexoclinic?schema=public" npm run seed:demo -w @nexoclinic/api -- --tenant-slug clinic-demo --replace --confirm-slug clinic-demo
+```
+
+El seed sustituye pacientes, profesionales, servicios, gabinetes, horarios, citas, seguimientos, consentimientos, documentos, lista de espera y avisos de la clínica elegida; conserva la clínica, sus usuarios y su dirección. Incluye 50 pacientes de municipios de la provincia, ocho profesionales dentales, turnos trimestrales y citas pasadas y futuras. Los correos usan `example.invalid` y los teléfonos son números de prueba no contactables.
+
+En Render, primero espera a que el despliegue aplique la migración y haz una copia de seguridad de PostgreSQL. Después, en el Shell del servicio API, confirma el slug exacto de la clínica y ejecuta, por ejemplo:
+
+```bash
+npm run seed:demo:built -- --tenant-slug clinica-demo --replace --confirm-slug clinica-demo --allow-remote
+```
+
+El seed exige el mismo slug dos veces y el indicador explícito `--replace`; solo opera en esa clínica. No lo ejecutes contra datos reales que deban conservarse.
+
 La web queda disponible en `http://localhost:8080`.
 
 ## Verificación

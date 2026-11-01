@@ -9,7 +9,9 @@
     "test": "jest --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "seed:demo": "ts-node prisma/seed-demo.ts",
+    "seed:demo:built": "node dist/seed-demo.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

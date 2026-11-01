@@ -3,7 +3,7 @@ import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionUser } from '../common/access';
 import { PatientsService } from './patients.service';
-class CreatePatientDto { @IsString() @MinLength(1) firstName!: string; @IsString() @MinLength(1) lastName!: string; @IsOptional() @IsEmail() email?: string; @IsOptional() @IsString() phone?: string; }
+class CreatePatientDto { @IsString() @MinLength(1) firstName!: string; @IsString() @MinLength(1) lastName!: string; @IsOptional() @IsEmail() email?: string; @IsOptional() @IsString() phone?: string; @IsOptional() @IsString() address?: string; @IsOptional() @IsString() city?: string; }
 @Controller('patients') @UseGuards(JwtAuthGuard)
 export class PatientsController {
   constructor(private patients: PatientsService) {}

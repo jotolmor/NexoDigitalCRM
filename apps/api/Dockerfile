@@ -8,7 +8,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN npm ci
 COPY apps/api apps/api
-RUN npm run prisma:generate -w @nexoclinic/api && npm run build -w @nexoclinic/api
+RUN npm run prisma:generate -w @nexoclinic/api && npm run build -w @nexoclinic/api && npx tsc --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --strict --rootDir apps/api/prisma --outDir apps/api/dist apps/api/prisma/seed-demo.ts
 FROM node:24-alpine
 WORKDIR /app
 COPY docker/environment-proxy-ca.crt /usr/local/share/ca-certificates/environment-proxy-ca.crt
