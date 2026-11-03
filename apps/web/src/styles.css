@@ -109,3 +109,6 @@ aside .brand .crm-logo-dark{display:block}
 /* Logo in the dedicated assistant page heading. */
 .assistant-page-brand{line-height:0;margin:8px 0 18px;max-width:100%}
 .assistant-page-brand img{display:block;width:320px;max-width:100%;height:auto}
+
+/* Moderate clinic heading in Overview. */
+.overview-clinic-title{font-size:clamp(1.25rem,2vw,1.5rem);font-weight:650;line-height:1.35;letter-spacing:-.025em;margin:0}
