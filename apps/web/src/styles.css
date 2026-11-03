@@ -94,3 +94,14 @@ li span, .empty { color: var(--muted); }
   .metrics article { padding: 18px 20px; }
   .management { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* CrmNexodigitalAssist brand */
+.brand{display:block;width:100%;max-width:310px;line-height:0;letter-spacing:normal}
+.brand .crm-logo{display:block;width:100%;height:auto}
+.brand .crm-logo-dark{display:none}
+aside .brand{padding:0 2px;width:100%;max-width:220px;flex-shrink:0}
+aside .brand .crm-logo-light{display:none}
+aside .brand .crm-logo-dark{display:block}
+.access .brand{margin-bottom:26px}
+.load-error .brand{margin-bottom:24px}
+@media(max-width:600px){.access .brand{max-width:272px}}
