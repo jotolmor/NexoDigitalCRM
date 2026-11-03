@@ -76,3 +76,15 @@ realizar cualquier cambio de reserva: este paquete no reescribe citas.
 - Compatibilidad de las inserciones con la estructura de las correcciones del VPS.
 
 No se ha ejecutado en el VPS ni se ha llamado a OpenAI con datos reales durante estas pruebas.
+
+## Página independiente del asistente
+
+Después de aplicar la corrección de memoria, `move-assistant-page.py` mueve el chat
+existente a Asistente, primera opción y vista inicial del menú. Extrae el mismo
+componente y sus manejadores: no cambia la API ni los datos o las confirmaciones.
+Crea respaldo del frontend y se detiene si no reconoce la versión esperada.
+Compilar y actualizar solo el servicio web después de aplicarlo.
+
+Validado con TypeScript/Vite y Playwright: primera opción y pantalla inicial,
+asistente ausente en Horarios, formulario de horarios conservado, historial y
+borrador al navegar/recargar, respuestas en curso y confirmación pendiente.
