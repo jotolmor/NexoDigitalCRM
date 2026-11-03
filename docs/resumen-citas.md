@@ -5,8 +5,9 @@ y `/dashboard/day`. No cambia la base de datos, la API ni el sistema de reservas
 
 Al entrar se selecciona hoy en la zona horaria de la clínica. Al elegir una fecha:
 
-- Las tarjetas muestran pacientes distintos con cita, doctores distintos con cita
-  y número de citas de ese día. Una persona con dos citas se cuenta una vez como
+- El encabezado del bocadillo muestra pacientes distintos con cita, doctores
+  distintos con cita y número de citas de ese día. No se muestran tarjetas de
+  recuento ni la línea del nombre de clínica y zona horaria en la cabecera de Resumen. Una persona con dos citas se cuenta una vez como
   paciente y dos como citas.
 - El listado agrupa las citas por doctor e incluye únicamente doctores con citas.
   No muestra el directorio completo, turnos vacíos, ausencias ni huecos libres.

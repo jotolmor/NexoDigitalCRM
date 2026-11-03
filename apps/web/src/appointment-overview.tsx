@@ -96,11 +96,6 @@ export function AppointmentOverview({ session, timezone, load }: Props) {
 
   return <div className="appointment-overview">
     <div className="overview-date"><span className="eyebrow">{selectedDate === today ? 'Actividad de hoy' : 'Día seleccionado'}</span><p>{selectedLabel}</p></div>
-    <section className="metrics overview-metrics" aria-label="Citas del día seleccionado">
-      <article><span>Pacientes con cita</span><strong>{day.isLoading ? '…' : day.isError ? '—' : roster.patients}</strong></article>
-      <article><span>Doctores con cita</span><strong>{day.isLoading ? '…' : day.isError ? '—' : roster.doctors.length}</strong></article>
-      <article><span>Citas del día</span><strong>{day.isLoading ? '…' : day.isError ? '—' : roster.total}</strong></article>
-    </section>
     <section className="calendar-panel"><div className="calendar-heading"><div><p className="eyebrow">Calendario de citas</p><h2>Agenda · {year}</h2><p>Pulsa un día para ver sus doctores y pacientes.</p></div><div className="calendar-controls"><button type="button" className="secondary" aria-label="Trimestre anterior" onClick={() => setMonth(new Date(year, month.getMonth() - 3, 1))}>‹</button><span>{Math.floor(month.getMonth() / 3) + 1} / 4</span><button type="button" className="secondary" aria-label="Trimestre siguiente" onClick={() => setMonth(new Date(year, month.getMonth() + 3, 1))}>›</button></div></div>
       {calendar.isLoading ? <p role="status">Cargando calendario…</p> : calendar.isError ? <p className="error" role="alert">No se pudo cargar el calendario.</p> : <><div className="calendar-months">{[0, 1, 2].map(index => monthView(month.getMonth() + index))}</div><div className="calendar-legend"><span><i className="day-free" />Libre</span><span><i className="day-partial" />Ocupación parcial</span><span><i className="day-full" />Completo</span><span><i className="day-closed" />Sin horario</span></div></>}
     </section>
