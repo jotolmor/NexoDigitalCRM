@@ -105,3 +105,7 @@ aside .brand .crm-logo-dark{display:block}
 .access .brand{margin-bottom:26px}
 .load-error .brand{margin-bottom:24px}
 @media(max-width:600px){.access .brand{max-width:272px}}
+
+/* Logo in the dedicated assistant page heading. */
+.assistant-page-brand{line-height:0;margin:8px 0 18px;max-width:100%}
+.assistant-page-brand img{display:block;width:320px;max-width:100%;height:auto}
