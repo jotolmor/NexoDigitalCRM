@@ -1,0 +1,34 @@
+.overview-date{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-bottom:14px}
+.overview-date p{margin:0;color:#475569;text-transform:capitalize;font-size:.9rem}
+.overview-roster{padding:24px;margin-top:24px}
+.overview-roster-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}
+.overview-roster-heading h2{margin:5px 0 0}
+.overview-roster-heading>span{font-size:.78rem;color:#64748b}
+.overview-doctors{display:grid;gap:14px}
+.overview-doctor{padding:18px;border:1px solid #e2e8f0;border-radius:14px;background:linear-gradient(120deg,#fff,#f8fafc)}
+.overview-doctor-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:13px}
+.overview-doctor-heading h3{margin:0;font-size:1rem}
+.overview-doctor-heading p{margin:5px 0 0;color:#64748b;font-size:.8rem}
+.overview-doctor-heading>span{padding:5px 9px;white-space:nowrap;border-radius:20px;color:#4338ca;background:#eef2ff;font-size:.75rem;font-weight:700}
+.overview-doctor ul{display:grid;gap:0;list-style:none;padding:0;margin:0}
+.overview-doctor li{display:grid;grid-template-columns:100px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid #e2e8f0}
+.overview-doctor time{color:#4338ca;font-weight:750;font-size:.83rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.overview-doctor li>div{display:grid;gap:4px;min-width:0}
+.overview-doctor li b{color:#0f172a;font-size:.9rem;overflow-wrap:anywhere}
+.overview-doctor li>div>span{font-size:.78rem;color:#64748b;overflow-wrap:anywhere}
+.overview-status{padding:4px 7px;border-radius:8px;font-size:.7rem;white-space:nowrap}
+.overview-empty{padding:22px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;text-align:center;background:#f8fafc}
+.day-popover{position:fixed;inset:auto;margin:0;padding:0;width:620px;max-width:calc(100vw - 32px);max-height:none;border:1px solid #c7d2fe;border-radius:18px;background:#fff;color:#0f172a;box-shadow:0 24px 72px #0f172a33;overflow:visible}
+.day-popover::backdrop{background:#0f172a26}
+.day-popover-pointer{position:absolute;width:12px;height:12px;top:-7px;left:28px;transform:rotate(45deg);background:#fff;border-left:1px solid #c7d2fe;border-top:1px solid #c7d2fe;pointer-events:none}
+.day-popover.above .day-popover-pointer{top:auto;bottom:-7px;transform:rotate(225deg)}
+.day-popover-scroll{padding:22px;max-height:min(70dvh,640px);overflow:auto;overscroll-behavior:contain;border-radius:18px}
+.day-popover-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}
+.day-popover-heading h2{margin:7px 0;text-transform:none;line-height:1.35;font-size:1.13rem}
+.day-popover-heading p:not(.eyebrow){margin:5px 0;color:#475569;font-size:.82rem}
+.day-popover-heading small{font-size:.73rem;color:#64748b}
+.day-popover-heading>button{flex:0 0 40px;font-size:1.3rem;padding:2px}
+.appointment-overview .calendar-months{grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}
+.appointment-overview .calendar-month{min-width:0}
+@media(max-width:800px){.appointment-overview .calendar-months{grid-template-columns:1fr;gap:24px}.appointment-overview .calendar-heading{flex-wrap:wrap}}
+@media(max-width:600px){.overview-roster{padding:16px}.overview-roster-heading{align-items:flex-start;flex-direction:column;gap:8px}.overview-doctor{padding:13px}.overview-doctor li{grid-template-columns:82px minmax(0,1fr);gap:8px}.overview-status{grid-column:2;justify-self:start}.overview-doctor time{font-size:.76rem}.day-popover-scroll{padding:16px;max-height:75dvh}.day-popover-heading h2{font-size:1rem}}
