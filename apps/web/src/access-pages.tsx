@@ -1,4 +1,5 @@
 import { FormEvent, ReactNode, useState } from 'react';
+import { registrationSectors, sectorSpecialties, type RegistrationSector } from './registration-sectors';
 
 export type Session = {
   accessToken: string;
@@ -56,12 +57,16 @@ export function LoginPage({ onSession }: Props) {
 export function RegisterPage({ onSession }: Props) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sector, setSector] = useState<RegistrationSector>('CLINIC');
+  const [specialty, setSpecialty] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     const values = new FormData(event.currentTarget);
     const fields = ['clinicName', 'businessType', 'specialty', 'name', 'email', 'password'];
     const body = Object.fromEntries(fields.map(field => [field, field === 'password' ? String(values.get(field) ?? '') : String(values.get(field) ?? '').trim()]));
+    body.specialty = specialty === '__other__' ? String(values.get('customSpecialty') ?? '').trim() : specialty;
+    if (!body.specialty) { setMessage('Indica tu especialidad o actividad.'); return; }
     setMessage(''); setBusy(true);
     try { onSession(await authenticate('register', body)); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.'); }
@@ -70,8 +75,15 @@ export function RegisterPage({ onSession }: Props) {
   return <AccessLayout title="Crear una cuenta" intro="Registra tu negocio y empieza a organizar tu agenda." footer={<>¿Ya tienes una cuenta? <a className="link" href="/login">Iniciar sesión</a></>}>
     <form onSubmit={submit} aria-busy={busy}>
       <label>Nombre del negocio<input name="clinicName" autoComplete="organization" required minLength={2} /></label>
-      <label>Sector<select name="businessType" defaultValue="CLINIC"><option value="CLINIC">Clínica o salud</option><option value="BEAUTY">Belleza y bienestar</option><option value="FITNESS">Fitness y deporte</option><option value="EDUCATION">Educación</option><option value="PROFESSIONAL_SERVICES">Servicios profesionales</option><option value="HOME_SERVICES">Servicios a domicilio</option><option value="AUTOMOTIVE">Taller y automoción</option><option value="OTHER">Otro negocio de servicios</option></select></label>
-      <label>Especialidad o actividad<input name="specialty" required /></label>
+      <label>Sector<select name="businessType" value={sector} onChange={event => {
+        setSector(event.target.value as RegistrationSector); setSpecialty(''); setMessage('');
+      }}>{registrationSectors.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+      <label>Especialidad o actividad<select name="specialty" value={specialty} onChange={event => { setSpecialty(event.target.value); setMessage(''); }} required>
+        <option value="" disabled>Selecciona una especialidad o actividad</option>
+        {sectorSpecialties[sector].map(item => <option key={item} value={item}>{item}</option>)}
+        <option value="__other__">Otra especialidad o actividad</option>
+      </select></label>
+      {specialty === '__other__' && <label>Indica tu especialidad o actividad<input name="customSpecialty" required maxLength={120} /></label>}
       <label>Tu nombre<input name="name" autoComplete="name" required minLength={2} /></label>
       <label>Correo electrónico<input name="email" type="email" autoComplete="email" required /></label>
       <label>Contraseña<input name="password" type="password" autoComplete="new-password" minLength={12} aria-describedby="registration-password-help" required /></label>

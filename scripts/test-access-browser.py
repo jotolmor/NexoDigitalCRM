@@ -50,15 +50,56 @@ async def main():
   await expect(page.get_by_role('heading',name='Iniciar sesión')).to_be_visible()
   assert await page.evaluate('localStorage.getItem("nexoclinic-session")') is None
   await page.get_by_role('link',name='Crear una cuenta').click()
-  for name,value in {'clinicName':'Clínica Prueba','specialty':'General','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro'}.items():
+  sector=page.locator('select[name=businessType]')
+  specialty=page.locator('select[name=specialty]')
+  for value,activity in {
+   'CLINIC':'Odontología','BEAUTY':'Peluquería','FITNESS':'Pilates','EDUCATION':'Academia de idiomas',
+   'PROFESSIONAL_SERVICES':'Diseño y desarrollo web','HOME_SERVICES':'Fontanería',
+   'AUTOMOTIVE':'Mecánica general','OTHER':'Servicios turísticos'
+  }.items():
+   await sector.select_option(value)
+   await expect(specialty).to_have_value('')
+   await expect(specialty.locator('option',has_text=activity)).to_have_count(1)
+   await specialty.select_option(activity)
+   assert await page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+  await sector.select_option('CLINIC')
+  await specialty.select_option('Odontología')
+  await sector.select_option('BEAUTY')
+  await expect(specialty).to_have_value('')
+  await expect(specialty.locator('option',has_text='Odontología')).to_have_count(0)
+  await specialty.select_option('__other__')
+  await page.locator('input[name=customSpecialty]').fill('Actividad anterior')
+  await sector.select_option('CLINIC')
+  await expect(page.locator('input[name=customSpecialty]')).to_have_count(0)
+  for name,value in {'clinicName':'Clínica Prueba','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro'}.items():
    await page.locator(f'input[name={name}]').fill(value)
+  # A missing activity must prevent submission even when the other fields are valid.
+  await page.get_by_role('button',name='Crear cuenta',exact=True).click()
+  assert len(requests)==2
+  await specialty.select_option('Odontología')
   await page.get_by_role('button',name='Crear cuenta',exact=True).click()
   await expect(page.locator('aside nav')).to_be_visible()
   await expect(page).to_have_url(base+'/')
   assert requests[-1][0].endswith('/auth/register')
-  assert requests[-1][1]=={'clinicName':'Clínica Prueba','specialty':'General','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro','businessType':'CLINIC'}
-  assert len(requests)==3 and not errors,(requests,errors)
+  assert requests[-1][1]=={'clinicName':'Clínica Prueba','specialty':'Odontología','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro','businessType':'CLINIC'}
+  assert len(requests)==3
+  await page.locator('button.logout').click()
+  await page.get_by_role('link',name='Crear una cuenta').click()
+  await page.locator('select[name=businessType]').select_option('PROFESSIONAL_SERVICES')
+  await page.locator('select[name=specialty]').select_option('__other__')
+  for name,value in {'clinicName':'Nexo','name':'Usuario Prueba','email':'custom@example.invalid','password':'password-seguro','customSpecialty':'   '}.items():
+   await page.locator(f'input[name={name}]').fill(value)
+  await page.get_by_role('button',name='Crear cuenta',exact=True).click()
+  await expect(page.get_by_role('alert')).to_have_text('Indica tu especialidad o actividad.')
+  assert len(requests)==3
+  await page.locator('input[name=customSpecialty]').fill('  Automatización con IA  ')
+  await page.get_by_role('button',name='Crear cuenta',exact=True).click()
+  await expect(page.locator('aside nav')).to_be_visible()
+  assert requests[-1][1]['specialty']=='Automatización con IA'
+  assert requests[-1][1]['businessType']=='PROFESSIONAL_SERVICES'
+  assert 'customSpecialty' not in requests[-1][1]
+  assert len(requests)==4 and not errors,(requests,errors)
   await browser.close()
-  print('PASS: separate auth pages, navigation, mobile, error/retry, login, registration and logout')
+  print('PASS: separate auth pages, navigation, mobile, error/retry, login, registration, sector-specific options/reset, required selection, custom activity and logout')
 
 asyncio.run(main())
