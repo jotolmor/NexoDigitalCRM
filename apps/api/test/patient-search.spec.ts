@@ -41,6 +41,17 @@ describe('Patient DNI and search', () => {
     await expect(service.list(user, undefined, filters)).resolves.toMatchObject([{ id: 'patient' }]);
     expect(prisma.patient.findMany).toHaveBeenCalledWith({ where: { tenantId: 'tenant', clinicId: 'clinic', AND: ['Candela', 'Soto'].map(part => ({ OR: [{ firstName: { contains: part, mode: 'insensitive' } }, { lastName: { contains: part, mode: 'insensitive' } }] })), dni: { contains: '12345678Z', mode: 'insensitive' } }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] });
   });
+  it('searches by surname alone without matching the first name', async () => {
+    const { service, prisma } = setup();
+    const filters = await pipe.transform({ lastName: ' Soto Pérez ' }, { type: 'query', metatype: queryDto });
+    await service.list(user, undefined, filters);
+    expect(prisma.patient.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { tenantId: 'tenant', clinicId: 'clinic', AND: ['Soto', 'Pérez'].map(part => ({ lastName: { contains: part, mode: 'insensitive' } })) } }));
+  });
+  it('combines separate first and last name with DNI', async () => {
+    const { service, prisma } = setup();
+    await service.list(user, undefined, { firstName: 'Candela', lastName: 'Soto', dni: '12345678z' });
+    expect(prisma.patient.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { tenantId: 'tenant', clinicId: 'clinic', AND: [{ firstName: { contains: 'Candela', mode: 'insensitive' } }, { lastName: { contains: 'Soto', mode: 'insensitive' } }], dni: { contains: '12345678Z', mode: 'insensitive' } } }));
+  });
   it('matches formatted phone numbers without changing stored phone data', async () => {
     const { service } = setup();
     await expect(service.list(user, undefined, { phone: '(+34) 630 289-699' })).resolves.toMatchObject([{ id: 'patient', phone: '+34 630-289-699' }]);

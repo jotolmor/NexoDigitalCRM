@@ -28,8 +28,8 @@ async def main():
      calls.append(query);await asyncio.sleep(.1)
      if fail_next:
       fail_next=False;await route.fulfill(status=500,json={'message':'Error de búsqueda de prueba.'},headers=headers);return
-    name=query.get('name',[''])[0].lower().split();dni=norm(query.get('dni',[''])[0]);phone=digits(query.get('phone',[''])[0])
-    data=[person for person in people if all(part in (person['firstName']+' '+person['lastName']).lower() for part in name) and (not dni or dni in norm(person.get('dni',''))) and (not phone or phone in digits(person.get('phone','')))]
+    name=query.get('name',[''])[0].lower().split();first=query.get('firstName',[''])[0].lower().split();last=query.get('lastName',[''])[0].lower().split();dni=norm(query.get('dni',[''])[0]);phone=digits(query.get('phone',[''])[0])
+    data=[person for person in people if all(part in (person['firstName']+' '+person['lastName']).lower() for part in name) and all(part in person['firstName'].lower() for part in first) and all(part in person['lastName'].lower() for part in last) and (not dni or dni in norm(person.get('dni',''))) and (not phone or phone in digits(person.get('phone','')))]
    else:data=[]
    await route.fulfill(json=data,headers=headers)
   await page.route('**/api/**',api)
@@ -38,7 +38,7 @@ async def main():
   await page.reload();nav=page.get_by_role('navigation',name='Navegación principal')
   await nav.get_by_role('button',name='Seguimiento',exact=True).click()
   form=page.get_by_role('form',name='Buscar pacientes',exact=True)
-  await expect(form.locator('input')).to_have_count(3)
+  await expect(form.locator('input')).to_have_count(4)
   await expect(page.get_by_role('heading',name='Nueva tarea',exact=True)).to_have_count(0)
   await expect(page.locator('.followup-search-layout .directory-record')).to_have_count(3)
   labels=await form.locator('label').evaluate_all('(els)=>els.map(e=>e.getBoundingClientRect().top)')
@@ -49,8 +49,9 @@ async def main():
   search_button=form.get_by_role('button',name='Buscar paciente',exact=True)
   await search_button.click();await expect(form.get_by_role('alert')).to_contain_text('Introduce al menos')
   assert not calls
-  async def search(name='',dni='',phone=''):
-   await form.get_by_label('Nombre del paciente',exact=True).fill(name)
+  async def search(name='',last='',dni='',phone=''):
+   await form.get_by_label('Nombre',exact=True).fill(name)
+   await form.get_by_label('Apellidos',exact=True).fill(last)
    await form.get_by_label('DNI',exact=True).fill(dni)
    await form.get_by_label('Teléfono',exact=True).fill(phone)
    await search_button.click()
@@ -58,7 +59,7 @@ async def main():
    await expect(dialog).to_be_visible()
    await expect(dialog.get_by_text('Buscando pacientes…',exact=True)).to_have_count(0)
    return dialog
-  dialog=await search(name='Candela Soto')
+  dialog=await search(name='Candela',last='Soto')
   await expect(dialog.locator('.directory-record')).to_have_count(1)
   await expect(dialog).to_contain_text('12345678Z')
   box=await dialog.bounding_box();assert abs(box['x']+box['width']/2-720)<2 and abs(box['y']+box['height']/2-500)<2,box
@@ -77,11 +78,16 @@ async def main():
   await detail.get_by_role('button',name='Volver a resultados',exact=True).click()
   await page.keyboard.press('Escape');await expect(page.get_by_role('dialog')).to_have_count(0)
   await expect(search_button).to_be_focused()
+  dialog=await search(last='soto');await expect(dialog.locator('.directory-record')).to_have_count(1)
+  assert calls[-1]=={'lastName':['soto']}
+  await dialog.get_by_role('button',name='Cerrar seguimiento',exact=True).click()
+  dialog=await search(last='Candela');await expect(dialog).to_contain_text('No se encontraron pacientes')
+  await dialog.get_by_role('button',name='Cerrar seguimiento',exact=True).click()
   dialog=await search(dni='123.456-78z');await expect(dialog.locator('.directory-record')).to_have_count(1)
   await dialog.get_by_role('button',name='Cerrar seguimiento',exact=True).click()
   dialog=await search(phone='630 289 699');await expect(dialog).to_contain_text('Candela Soto')
   await dialog.get_by_role('button',name='Cerrar seguimiento',exact=True).click()
-  dialog=await search(name='Candela Soto',dni='X1234567L')
+  dialog=await search(name='Candela',last='Soto',dni='X1234567L')
   await expect(dialog).to_contain_text('No se encontraron pacientes')
   await dialog.get_by_role('button',name='Cerrar seguimiento',exact=True).click()
   fail_next=True;dialog=await search(name='Candela')
@@ -100,5 +106,5 @@ async def main():
   await page.keyboard.press('Escape')
   assert not errors,errors
   await browser.close()
-  print('PASS: three-field horizontal patient search, vertical patient cards, name/DNI/formatted phone and combined filters, central results/detail/editor, empty/error/retry, existing task save/complete, keyboard return and mobile. All data mocked.')
+  print('PASS: separate name/surname horizontal search and surname-only lookup, vertical patient cards, name/DNI/formatted phone and combined filters, central results/detail/editor, empty/error/retry, existing task save/complete, keyboard return and mobile. All data mocked.')
 asyncio.run(main())

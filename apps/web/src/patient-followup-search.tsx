@@ -6,7 +6,7 @@ import './patient-followup-search.css';
 
 type Patient = Parameters<typeof PatientCardSummary>[0]['patient'] & { id: string };
 type FollowUp = { id: string; patientId: string; title: string; notes?: string | null; dueAt?: string | null; status: string };
-type Filters = { name: string; dni: string; phone: string };
+type Filters = { firstName: string; lastName: string; dni: string; phone: string };
 type Props = { scope: string[]; load: (path: string) => Promise<any>; update: (path: string, body: unknown) => Promise<any> };
 export function PatientFollowUpSearch({ scope, load, update }: Props) {
   const qc = useQueryClient();
@@ -28,8 +28,8 @@ export function PatientFollowUpSearch({ scope, load, update }: Props) {
   function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
-    const filters = { name: String(values.get('name') ?? '').trim(), dni: String(values.get('dni') ?? '').trim(), phone: String(values.get('phone') ?? '').trim() };
-    if (!Object.values(filters).some(Boolean)) { setFormError('Introduce al menos un nombre, DNI o teléfono.'); return; }
+    const filters = { firstName: String(values.get('firstName') ?? '').trim(), lastName: String(values.get('lastName') ?? '').trim(), dni: String(values.get('dni') ?? '').trim(), phone: String(values.get('phone') ?? '').trim() };
+    if (!Object.values(filters).some(Boolean)) { setFormError('Introduce al menos un nombre, apellido, DNI o teléfono.'); return; }
     if (filters.phone && !/\d/.test(filters.phone)) { setFormError('Introduce un teléfono con dígitos.'); return; }
     setFormError(''); setDetailError(''); setSelected(null); setEditing(null); setFromSearch(true); setDialogOpen(true);
     setCriteria(previous => ({ filters, revision: (previous?.revision ?? 0) + 1 }));
@@ -71,11 +71,12 @@ export function PatientFollowUpSearch({ scope, load, update }: Props) {
   }
   const patientTasks = followUps.data?.filter(task => task.patientId === selected?.id) ?? [];
   return <>
-    <header><div><p className="eyebrow">Atención al paciente</p><h1>Seguimiento</h1><p>Encuentra un paciente por su nombre, DNI o teléfono y consulta sus seguimientos.</p></div></header>
+    <header><div><p className="eyebrow">Atención al paciente</p><h1>Seguimiento</h1><p>Encuentra un paciente por su nombre, apellidos, DNI o teléfono y consulta sus seguimientos.</p></div></header>
     <section className="management followup-search-layout">
       <form className="directory-create followup-search-form" aria-label="Buscar pacientes" onSubmit={search}>
         <h2>Buscar pacientes</h2>
-        <label>Nombre del paciente<input name="name" autoComplete="off" maxLength={120} placeholder="Nombre y apellidos" /></label>
+        <label>Nombre<input name="firstName" autoComplete="off" maxLength={120} placeholder="Nombre del paciente" /></label>
+        <label>Apellidos<input name="lastName" autoComplete="off" maxLength={120} placeholder="Apellidos del paciente" /></label>
         <label>DNI<input name="dni" autoComplete="off" maxLength={20} placeholder="DNI o NIE" /></label>
         <label>Teléfono<input type="tel" name="phone" autoComplete="off" maxLength={40} placeholder="Número de teléfono" /></label>
         <button type="submit" className="primary">Buscar paciente</button>

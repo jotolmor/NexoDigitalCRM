@@ -1,5 +1,5 @@
 .followup-search-layout { grid-template-columns: minmax(0, 1fr); }
-.followup-search-layout > .followup-search-form { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; }
+.followup-search-layout > .followup-search-form { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; }
 .followup-search-form > :is(h2, .error) { grid-column: 1 / -1; }
 .followup-search-form > button { min-height: 44px; }
 .followup-patient-cards .directory-list { margin: 0; padding: 0; list-style: none; }

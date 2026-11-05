@@ -10,14 +10,19 @@ type PatientInput = {
 @Injectable()
 export class PatientsService {
   constructor(private prisma: PrismaService) {}
-  async list(user: SessionUser, search?: string, filters: { name?: string; dni?: string; phone?: string } = {}) {
+  async list(user: SessionUser, search?: string, filters: { name?: string; firstName?: string; lastName?: string; dni?: string; phone?: string } = {}) {
     const clinicId = requireClinic(user); const needle = search?.trim();
     const nameParts = filters.name?.trim().split(/\s+/).filter(Boolean) ?? [];
+    const nameFilters = [
+      ...nameParts.map(part => ({ OR: [{ firstName: { contains: part, mode: 'insensitive' as const } }, { lastName: { contains: part, mode: 'insensitive' as const } }] })),
+      ...(filters.firstName?.trim().split(/\s+/).filter(Boolean) ?? []).map(part => ({ firstName: { contains: part, mode: 'insensitive' as const } })),
+      ...(filters.lastName?.trim().split(/\s+/).filter(Boolean) ?? []).map(part => ({ lastName: { contains: part, mode: 'insensitive' as const } }))
+    ];
     const document = filters.dni?.replace(/[\s.-]/g, '').toUpperCase();
     const phone = filters.phone?.replace(/\D/g, '');
     if (filters.dni?.trim() && (!document || !/^[A-Z0-9]{1,20}$/.test(document))) throw new BadRequestException('Revisa el DNI de búsqueda.');
     if (filters.phone?.trim() && !phone) throw new BadRequestException('Introduce un teléfono con dígitos.');
-    const records = await this.prisma.patient.findMany({ where: { tenantId: user.tenantId, clinicId, ...(nameParts.length ? { AND: nameParts.map(part => ({ OR: [{ firstName: { contains: part, mode: 'insensitive' as const } }, { lastName: { contains: part, mode: 'insensitive' as const } }] })) } : {}), ...(document ? { dni: { contains: document, mode: 'insensitive' as const } } : {}), ...(needle ? { OR: [{ firstName: { contains: needle, mode: 'insensitive' } }, { lastName: { contains: needle, mode: 'insensitive' } }, { email: { contains: needle, mode: 'insensitive' } }] } : {}) }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] });
+    const records = await this.prisma.patient.findMany({ where: { tenantId: user.tenantId, clinicId, ...(nameFilters.length ? { AND: nameFilters } : {}), ...(document ? { dni: { contains: document, mode: 'insensitive' as const } } : {}), ...(needle ? { OR: [{ firstName: { contains: needle, mode: 'insensitive' } }, { lastName: { contains: needle, mode: 'insensitive' } }, { email: { contains: needle, mode: 'insensitive' } }] } : {}) }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] });
     // Existing phone numbers can include spaces, prefixes, hyphens or parentheses.
     const patients = phone ? records.filter(patient => patient.phone?.replace(/\D/g, '').includes(phone)) : records;
     if (!patients.some(patient => patient.dateOfBirth)) return patients;
