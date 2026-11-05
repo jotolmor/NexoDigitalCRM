@@ -117,3 +117,27 @@ Se comprueban guardado, normalización y limpieza de DNI, compatibilidad de paci
 El alta y la edición de profesionales incluyen DNI y NIF como campos opcionales, con normalización a mayúsculas sin espacios, puntos ni guiones. Se guardan por separado y se muestran en la tarjeta; se pueden modificar o limpiar sin afectar a los datos anteriores. La API admite entre 3 y 20 caracteres alfanuméricos normalizados y conserva compatibilidad con clientes antiguos. La migración `20261105190000_professional_identifiers` añade ambas columnas opcionales, sin eliminar datos. El despliegue preparado en `scripts/deploy-professional-identifiers.sh SHA` guarda copias y aplica las migraciones antes de recrear API/web; no se ha ejecutado contra producción desde este entorno. Validación: `test/professional-identifiers.spec.ts` y `scripts/test-professional-edit-browser.py`, con datos simulados.
 
 La búsqueda de Seguimiento separa Nombre y Apellidos. Los cuatro campos (nombre, apellidos, DNI, teléfono) son independientes y basta uno para buscar, incluidos sólo apellidos o sólo DNI. La API añade `firstName` y `lastName` como filtros opcionales separados, conservando `name` y `search` para clientes anteriores. Los apellidos compuestos se separan en palabras y se comparan únicamente con `lastName`, sin distinguir mayúsculas/minúsculas. No requiere migración.
+
+
+## Turnos de profesionales
+
+El destino antes llamado Horarios se muestra como «Turnos de profesionales». La página tiene un asistente de turnos, fichas verticales de profesionales con su número de turnos, alta manual horizontal y tarjetas verticales de todos los turnos activos del profesional seleccionado. Cada tarjeta muestra día, horas locales y fechas de vigencia, con edición o retirada en bocadillo central. Se pueden registrar varios turnos por día sin ocultarlos. Se mantienen las reglas de horario existentes (lunes a viernes, mañana/tarde, inicio por hora y final en intervalos de 15 minutos). Retirar un turno sólo desactiva la regla y mantiene las citas ya reservadas.
+
+La gestión manual y la IA usan `shift-plan.ts` para validar fechas, profesionales de la clínica, límites horarios y solapamientos entre cambios y con el calendario actual. Los cambios se guardan en una transacción Serializable; los errores revierten toda la propuesta. `GET /scheduling/rules` devuelve todas las reglas activas de la clínica y `PATCH /scheduling/rules/:id/disable` retira una regla. Se conservan las rutas anteriores de alta, edición, consulta por profesional y ausencias.
+
+El nuevo asistente usa la misma `OPENAI_API_KEY` y `OPENAI_MODEL` del servidor, sin sustituir el asistente de citas. `POST /scheduling/assistant/ask` conecta herramientas de profesionales, turnos y preparación de hasta 20 cambios. Envía fecha actual y zona horaria de la clínica; los minutos son horas locales. La API prepara el resumen real y valida los datos antes de devolverlo. El usuario revisa y pulsa Confirmar cambios; `POST /scheduling/assistant/confirm` vuelve a validar el estado y escribe. Las propuestas duran diez minutos, pertenecen al usuario/clínica y se consumen una sola vez. Se conservan en memoria del proceso: un reinicio o un despliegue obliga a preparar de nuevo la propuesta. Los permisos de escritura se comprueban en preparación y confirmación.
+
+El chat de turnos utiliza un canal propio en `assistant-conversation.ts`, separado del chat de citas y asociado a usuario/clínica; conserva borrador e historial al navegar y en sessionStorage. Las propuestas pendientes no se reactivan al recargar. Si la IA falla o no hay clave, la gestión manual sigue disponible.
+
+Validación local (sin datos reales ni llamadas reales a OpenAI):
+
+```bash
+npm run test -w @nexoclinic/api -- --runTestsByPath test/scheduling.service.spec.ts test/shift-plan.spec.ts test/shift-assistant.spec.ts
+python scripts/test-professional-shifts-browser.py
+python scripts/test-navigation-browser.py
+python scripts/test-professional-edit-browser.py
+```
+
+Las pruebas cubren fechas inválidas, conflictos, propuestas obsoletas, permisos y alcance de clínica, confirmación única, caducidad, rollback de lote, gestión manual, propuestas sin escrituras, refresco tras confirmación, aislamiento del chat y tamaños móviles. `scripts/deploy-professional-shifts.sh SHA` prepara copias de fuentes/base de datos y actualiza API/web conservando el asistente de citas personalizado y Compose. No se necesita una migración nueva para turnos; el script incluye las migraciones anteriores para instalaciones con cambios pendientes.
+
+Se conserva la reserva manual desde un turno existente mediante `shift-reservation.tsx`, ahora con el formulario en un bocadillo central.

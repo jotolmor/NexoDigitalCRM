@@ -6,12 +6,13 @@ const baseRule = { professionalId: 'professional-a', weekday: 1, startsAtMinute:
 
 function makeService(existing: any[] = []) {
   const prisma = {
-    professional: { findFirst: jest.fn().mockResolvedValue({ id: 'professional-a' }) },
+    professional: { findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([{ id: 'professional-a', firstName: 'Clara', lastName: 'Montoro' }]) },
     scheduleRule: {
       findMany: jest.fn().mockResolvedValue(existing),
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve(data))
     }
   };
+  (prisma as any).$transaction = jest.fn().mockImplementation((fn:any) => fn(prisma));
   return { service: new SchedulingService(prisma as any), prisma };
 }
 

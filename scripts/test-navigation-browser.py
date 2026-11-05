@@ -61,7 +61,7 @@ async def main():
   assert await card.evaluate('e=>getComputedStyle(e,"::before").animationName')=='none'
   await page.emulate_media(reduced_motion='no-preference')
   # Every section is available with the current state reflected accessibly.
-  for label in ['Citas','Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Horarios','Asistente']:
+  for label in ['Citas','Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Turnos de profesionales','Asistente']:
    button=nav.get_by_role('button',name=label,exact=True)
    await button.click()
    await expect(button).to_have_attribute('aria-current','page')

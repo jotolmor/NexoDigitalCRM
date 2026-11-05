@@ -1,0 +1,36 @@
+.professional-shifts-page { display: grid; gap: 26px; }
+.professional-shifts-page .panel { margin: 0; }
+.shift-ai-heading { display: flex; align-items: start; gap: 18px; }
+.shift-ai-heading > div { flex: 1; min-width: 0; }
+.shift-ai-heading h2 { margin: 4px 0 8px; }
+.shift-ai-heading p { margin: 0; line-height: 1.6; }
+.shift-ai-heading > button { flex: 0 0 auto; }
+.shift-assistant-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px; margin-top: 22px; }
+.shift-assistant-form textarea { width: 100%; min-width: 0; resize: vertical; padding: 14px; border: 1px solid #cbd5e1; border-radius: 12px; color: #0f172a; background: #f8fafc; }
+.shift-assistant-form > button { min-height: 48px; }
+.shift-proposal { margin-top: 18px; }
+.shift-proposal h3 { margin: 0; }
+.shift-proposal li { margin: 8px 0; line-height: 1.6; overflow-wrap: anywhere; }
+.shift-proposal > div { display: flex; flex-wrap: wrap; gap: 10px; }
+.shift-professional-grid, .professional-shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 20px; list-style: none; margin: 0; padding: 0; }
+.shift-professional-card, .professional-shift-card { display: flex; flex-direction: column; align-items: center; gap: 15px; min-width: 0; padding: 24px 20px; border: 1px solid transparent; border-radius: 18px; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: var(--crm-card-shadow); text-align: center; overflow-wrap: anywhere; }
+.shift-professional-card.selected { background: linear-gradient(#eef2ff, #f0fdfa) padding-box, var(--crm-card-border) border-box; }
+.shift-professional-card h3, .professional-shift-card h3 { margin: 0; font-size: 1rem; }
+.shift-professional-card p, .professional-shift-card p { margin: 0; color: #64748b; font-size: .85rem; line-height: 1.6; }
+.shift-professional-card > p { flex: 1; }
+.shift-professional-card > span:not(.patient-directory-avatar) { color: #475569; font-size: .8rem; }
+.shift-professional-card > button { width: 100%; }
+.professional-shift-card > div { display: grid; width: 100%; gap: 10px; margin-top: auto; }
+.professional-shift-time { color: #3730a3; font-size: 1.25rem; }
+.shifts-manual-panel { grid-template-columns: minmax(0, 1fr); }
+.shifts-manual-panel > .shift-rule-form { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.shift-rule-form > .shift-form-heading, .shift-rule-form > .shift-form-note, .shift-rule-form > .error, .shift-rule-form > .shift-form-actions { grid-column: 1 / -1; }
+.shift-form-heading h2 { margin: 4px 0 8px; }
+.shift-form-heading p { margin: 0; }
+.shift-form-note { color: #64748b; font-size: .8rem; line-height: 1.6; margin: 0; }
+.shift-form-actions { display: flex; justify-content: flex-end; }
+.shift-removal { display: grid; gap: 16px; }
+@media (max-width: 1000px) { .shifts-manual-panel > .shift-rule-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .shift-ai-heading { flex-wrap: wrap; } }
+@media (max-width: 540px) { .shifts-manual-panel > .shift-rule-form, .shift-assistant-form { grid-template-columns: minmax(0, 1fr); } .shift-ai-heading > div { flex-basis: 70%; } .shift-form-actions > button { width: 100%; } }
+
+.professional-shift-card .shift-reservation > button { width: 100%; min-height: 42px; }

@@ -16,10 +16,10 @@ const empty = (): Snapshot => ({ assistantAnswer: '', assistantHistory: [], assi
   assistantAction: null, assistantBusy: false, assistantDraft: '' });
 const stores = new Map<string, ReturnType<typeof createStore>>();
 
-function scope(session: Session) {
+function scope(session: Session, channel = 'agenda') {
   const user = session.user;
   if (!user.id) throw new Error('La sesión no identifica al usuario. Vuelve a iniciar sesión.');
-  return prefix + JSON.stringify([user.tenantId, user.clinicId ?? null, user.id]);
+  return prefix + JSON.stringify([user.tenantId, user.clinicId ?? null, user.id]) + (channel === 'agenda' ? '' : ':' + channel);
 }
 
 function restore(key: string): Snapshot {
@@ -74,15 +74,15 @@ function createStore(key: string) {
   };
 }
 
-export function assistantConversationStore(session: Session) {
-  const key = scope(session);
+export function assistantConversationStore(session: Session, channel = 'agenda') {
+  const key = scope(session, channel);
   let store = stores.get(key);
   if (!store) { store = createStore(key); stores.set(key, store); }
   return store;
 }
 
-export function useAssistantConversation(session: Session) {
-  const store = assistantConversationStore(session);
+export function useAssistantConversation(session: Session, channel = 'agenda') {
+  const store = assistantConversationStore(session, channel);
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot);
   return { ...snapshot, ...store.setters };
 }
