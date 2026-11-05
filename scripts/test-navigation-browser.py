@@ -35,7 +35,7 @@ async def main():
   await expect(page.locator('.workspace-date')).to_contain_text('Jueves, 5 de noviembre de 2026')
   await expect(page.locator('.workspace-header')).not_to_contain_text('Clínica Demo')
   await expect(page.locator('aside')).to_have_count(0)
-  await expect(nav.get_by_role('button')).to_have_count(9)
+  await expect(nav.get_by_role('button')).to_have_count(8)
   await expect(nav.locator('[aria-current=page]')).to_have_text('Asistente')
   await expect(page.get_by_role('heading',name='Asistente de agenda')).to_be_visible()
   for width in [1440,1024,768,390,320]:
@@ -57,7 +57,7 @@ async def main():
   assert await card.evaluate('e=>getComputedStyle(e,"::before").animationName')=='none'
   await page.emulate_media(reduced_motion='no-preference')
   # Every section is available with the current state reflected accessibly.
-  for label in ['Resumen','Citas','Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Horarios','Asistente']:
+  for label in ['Citas','Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Horarios','Asistente']:
    button=nav.get_by_role('button',name=label,exact=True)
    await button.click()
    await expect(button).to_have_attribute('aria-current','page')
@@ -73,7 +73,7 @@ async def main():
   await expect(box).to_have_value('Borrador conservado')
   await expect(page.locator('.assistant-chat-history')).to_contain_text('Respuesta de prueba conservada')
   # Buttons keep standard keyboard behavior and a visible focus state.
-  summary=nav.get_by_role('button',name='Resumen',exact=True)
+  summary=nav.get_by_role('button',name='Citas',exact=True)
   await summary.focus();await page.keyboard.press('Enter')
   await expect(summary).to_have_attribute('aria-current','page')
   await expect(summary).to_be_focused()
@@ -84,5 +84,5 @@ async def main():
   assert not errors,errors
   assert '/api/assistant/confirm' not in calls
   await browser.close()
-  print('PASS: no sidebar, 9 destinations, active state, 5 viewport sizes, animation/reduced motion, assistant history/draft, keyboard focus and logout. No production data accessed.')
+  print('PASS: no sidebar, 8 destinations, active state, 5 viewport sizes, animation/reduced motion, assistant history/draft, keyboard focus and logout. No production data accessed.')
 asyncio.run(main())

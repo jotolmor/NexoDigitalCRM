@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 import './dashboard-navigation.css';
 
-export type WorkspaceView = 'Asistente' | 'Resumen' | 'Agenda' | 'Pacientes' | 'Profesionales' | 'Servicios' | 'Tratamientos' | 'Seguimiento' | 'Horarios';
+export type WorkspaceView = 'Asistente' | 'Citas' | 'Pacientes' | 'Profesionales' | 'Servicios' | 'Tratamientos' | 'Seguimiento' | 'Horarios';
 
 const icons: Record<WorkspaceView | 'Salir', ReactNode> = {
   Asistente: <><path d="m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3L12 3Z" /><path d="m20 3 .5 1.5L22 5l-1.5.5L20 7l-.5-1.5L18 5l1.5-.5L20 3Z" /></>,
-  Resumen: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="4" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="11" width="7" height="10" rx="1.5" /></>,
-  Agenda: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18m-13 4h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01" /></>,
+  Citas: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18m-13 4h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01" /></>,
   Pacientes: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-2a6 6 0 0 1 12 0v2m2-16a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 4v2" /></>,
   Profesionales: <><circle cx="12" cy="6" r="3" /><path d="M5 21v-3a7 7 0 0 1 14 0v3m-11-9 4 4 4-4m-4 4v5m5-4v4m-2-2h4" /></>,
   Servicios: <><rect x="3" y="7" width="18" height="14" rx="3" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12a23 23 0 0 0 18 0m-9 0v4" /></>,
@@ -40,7 +39,7 @@ export function DashboardNavigation({ items, active, date, isToday, onSelect, on
           <img src="/branding/crm-nexodigital-assist-light.svg" width="272" height="92" alt="CrmNexodigitalAssist" />
         </button>
         <div className="workspace-date" aria-live="polite" aria-atomic="true">
-          <span className="workspace-date-icon"><NavigationIcon name="Agenda" /></span>
+          <span className="workspace-date-icon"><NavigationIcon name="Citas" /></span>
           <div><span className="workspace-date-caption">{isToday ? 'Actividad de hoy' : 'Día seleccionado'}</span><time dateTime={date}>{dateLabel}</time></div>
         </div>
         <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>

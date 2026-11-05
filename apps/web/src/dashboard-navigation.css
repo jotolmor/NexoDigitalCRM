@@ -19,7 +19,7 @@
 .workspace-logout { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; min-height: 42px; padding: 10px 13px; border: 1px solid #e2e8f0; border-radius: 12px; background: rgb(255 255 255 / 85%); color: #64748b; font-size: .78rem; font-weight: 600; cursor: pointer; }
 .workspace-logout svg { width: 17px; height: 17px; }
 .workspace-logout:hover { background: #fff; color: #334155; border-color: #c7d2fe; }
-.workspace-nav { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 12px; padding: 2px 0 6px; }
+.workspace-nav { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; padding: 2px 0 6px; }
 .workspace-nav-card {
   --workspace-border-angle: 135deg;
   position: relative;
@@ -71,7 +71,7 @@
   .workspace-brand { width: 176px; }
   .workspace-date { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; padding: 10px 12px; }
   .workspace-date time { font-size: .78rem; }
-  .workspace-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .workspace-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .workspace-nav-card { flex-direction: row; min-height: 67px; padding: 12px 8px; gap: 9px; border-radius: 14px; }
   .workspace-nav-icon { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 9px; }
   .workspace-nav-icon svg { width: 18px; height: 18px; }
@@ -79,13 +79,16 @@
   .workspace-nav-indicator { bottom: 5px; }
   .workspace-shell > main { padding-top: 25px; }
 }
+@media (max-width: 600px) {
+  .workspace-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 460px) {
   .workspace-top-inner { padding-inline: 16px; }
   .workspace-brand { width: 160px; min-width: 0; flex-shrink: 1; }
   .workspace-logout { font-size: .7rem; padding-inline: 9px; gap: 6px; }
   .workspace-nav { gap: 9px; }
-  .workspace-nav-card { flex-direction: column; min-height: 83px; padding: 11px 4px 13px; gap: 8px; }
-  .workspace-nav-label { font-size: .7rem; }
+  .workspace-nav-card { min-height: 64px; padding: 12px 8px; gap: 8px; }
+  .workspace-nav-label { font-size: .72rem; }
   .workspace-shell .assistant-page .ai-assistant-banner > div > .link { display: block; margin: 5px 0 0; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -93,3 +96,7 @@
   .workspace-nav-card, .workspace-nav-card::before { transition: none; }
   .workspace-nav-card:hover, .workspace-nav-card:focus-visible { transform: none; }
 }
+
+.appointments-management-section { margin-top: 36px; padding-top: 30px; border-top: 1px solid #e2e8f0; }
+.appointments-management-heading { margin-bottom: 22px; }
+.appointments-management-heading h2 { margin: 8px 0 0; font-size: clamp(1.3rem, 2vw, 1.6rem); letter-spacing: -.035em; }
