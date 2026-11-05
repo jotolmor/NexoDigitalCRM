@@ -149,3 +149,5 @@ El asistente filtra las propuestas mediante `available-shifts.ts`: muestra sólo
 El asistente incorpora `prepare_shift_swap` para intercambiar los turnos completos de dos profesionales distintos, aunque tengan días, horas o periodos diferentes. La propuesta muestra antes/después de ambos y se aplica como una sola transacción. Las citas de pacientes y sus profesionales no se modifican. Los intercambios y cambios personalizados que impliquen a varios profesionales requieren marcar que los implicados están de acuerdo; la API exige `colleaguesAgree: true` antes de consumir la propuesta. Esta confirmación la realiza el usuario gestor, sin firmas individuales ni cambios de citas. No se necesita migración.
 
 Referencia de plantillas aportada por el usuario: [Colorlib](https://colorlib.com/wp/templates/), para consultar como inspiración visual.
+
+Los campos de texto, áreas de texto y selectores comparten un borde negro de 1 px y sombra exterior oscura difuminada en acceso/registro, CRM y bocadillos. El foco mantiene el borde negro y añade un contorno índigo visible. Se excluyen casillas, radios y controles que no son campos de texto o selectores.

@@ -76,3 +76,15 @@
 .treatment-duration-page .treatment-duration-card > label { width: 100%; text-align: left; }
 .treatment-duration-page .treatment-duration-card .treatment-card-actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; gap: 10px; }
 .treatment-duration-page .treatment-card-actions button { white-space: normal; }
+
+/* Uniform thin black borders and diffuse outer shadows for form fields. */
+:is(.access, .workspace-shell, .workspace-edit-dialog, .day-popover) :is(input:not(:where([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="hidden"], [type="submit"], [type="button"], [type="reset"])), textarea, select) {
+  border: 1px solid #000;
+  box-shadow: 0 4px 13px rgb(0 0 0 / 23%);
+}
+:is(.access, .workspace-shell, .workspace-edit-dialog, .day-popover) :is(input:not(:where([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="hidden"], [type="submit"], [type="button"], [type="reset"])), textarea, select):focus {
+  border-color: #000;
+  box-shadow: 0 5px 16px rgb(0 0 0 / 28%);
+  outline: 3px solid rgb(79 70 229 / 22%);
+  outline-offset: 2px;
+}
