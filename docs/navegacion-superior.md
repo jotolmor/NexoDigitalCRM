@@ -43,3 +43,5 @@ node --test apps/web/test/overview-data.test.mjs
 ```
 
 La prueba de navegador del calendario cubre también detalles de cada tipo de tarjeta, filtrado por persona, cancelaciones, teclado y límites del bocadillo en móvil.
+
+Próximas citas utiliza también tarjetas verticales en una retícula adaptable, con borde degradado y relieve 3D a juego con doctores y pacientes. Conserva los botones de edición, recordatorios y rutas. El formulario de edición se adapta al ancho de cada tarjeta y los efectos de elevación respetan la reducción de movimiento.
