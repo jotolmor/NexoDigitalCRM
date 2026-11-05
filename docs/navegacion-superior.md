@@ -32,7 +32,7 @@ Además de las pruebas de navegador se verifica la validación del DTO y el env�
 npm run test -w @nexoclinic/api -- --runTestsByPath test/auth-address.spec.ts
 ```
 
-La sección Doctores y pacientes del día usa tarjetas horizontales a todo el ancho, con borde degradado fino, relieve, iniciales, nombre, contexto, número de citas y el primer horario del día. Cada persona aparece una sola vez por su ID, incluso si tiene varias citas o comparte nombre con otra. Los pacientes se agrupan también cuando tienen citas con varios profesionales. Se conservan únicamente las citas no canceladas.
+La sección Doctores y pacientes del día usa tarjetas verticales en una retícula adaptable, con borde degradado índigo/turquesa, relieve 3D, iniciales, nombre, contexto, número de citas y el primer horario del día. El botón de detalles queda al pie de cada tarjeta y las tarjetas se apilan en móvil. Cada persona aparece una sola vez por su ID, incluso si tiene varias citas o comparte nombre con otra. Los pacientes se agrupan también cuando tienen citas con varios profesionales. Se conservan únicamente las citas no canceladas.
 
 El botón «Detalles de citas» abre un bocadillo anclado a la tarjeta, filtrado por profesional o paciente y por el día ya consultado. El calendario mantiene su bocadillo general, sin abrir modales anidados. Los detalles muestran tratamientos, horarios en la zona de la clínica, estados y personas relacionadas, usando los datos de la consulta diaria existente. Escape, botón de cierre y fondo devuelven el foco al botón que abrió el bocadillo; la posición y el contenido desplazable se adaptan al viewport. Los efectos de elevación se desactivan con reducción de movimiento.
 

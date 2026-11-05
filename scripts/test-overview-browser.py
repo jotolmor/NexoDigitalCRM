@@ -61,7 +61,7 @@ async def main():
   await page.keyboard.press('Escape')
   await expect(dialog).to_have_count(0)
   await expect(button).to_be_focused()
-  # Unique horizontal doctor/patient cards, with person-specific appointment bubbles.
+  # Unique vertical doctor/patient cards, with person-specific appointment bubbles.
   await expect(page.locator('.overview-roster .person-card-doctor')).to_have_count(2)
   await expect(page.locator('.overview-roster .person-card-patient')).to_have_count(2)
   await expect(page.locator('.overview-roster')).not_to_contain_text('Cancelado')
