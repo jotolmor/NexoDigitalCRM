@@ -67,3 +67,12 @@
 .directory-services .directory-edit-button { width: 100%; min-height: 44px; }
 @media (max-width: 900px) { .directory-services > .directory-create { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) { .directory-services > .directory-create { grid-template-columns: minmax(0, 1fr); } }
+
+/* Treatment duration uses the same vertical card format as the directories. */
+.treatment-duration-page .treatment-duration-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); align-items: stretch; gap: 20px; }
+.treatment-duration-page .treatment-duration-card { display: flex; flex-direction: column; align-items: center; gap: 18px; min-width: 0; padding: 24px 20px; text-align: center; }
+.workspace-shell .treatment-duration-page .treatment-duration-card::before { content: '◷'; position: static; inset: auto; display: grid; place-items: center; flex: 0 0 54px; width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(145deg, #eef2ff, #e5faf3); color: #4f46e5; font-size: 1.6rem; }
+.treatment-duration-page .treatment-name { flex: 1; width: 100%; gap: 10px; overflow-wrap: anywhere; }
+.treatment-duration-page .treatment-duration-card > label { width: 100%; text-align: left; }
+.treatment-duration-page .treatment-duration-card .treatment-card-actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; gap: 10px; }
+.treatment-duration-page .treatment-card-actions button { white-space: normal; }

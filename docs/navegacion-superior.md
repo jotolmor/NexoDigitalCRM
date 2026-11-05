@@ -95,3 +95,5 @@ python scripts/test-professional-edit-browser.py
 ```
 
 Se comprueban clasificación y persistencia, especialidades dependientes, selección de duración, error/reintento, edición personalizada, limpieza de clasificación, compatibilidad de servicios antiguos, tarjetas verticales y editor centrado en móvil. Las pruebas utilizan datos simulados.
+
+Duración de tratamientos presenta una retícula adaptable de tarjetas verticales, con icono de reloj, nombre, precio, descripción, selector de duración y los dos botones apilados a todo el ancho. Comparte borde degradado, sombra difuminada y botones oscuros con los directorios. En móvil se apila en una columna; se conserva el editor centrado y el guardado de duración existente.
