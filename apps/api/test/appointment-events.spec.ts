@@ -1,0 +1,22 @@
+import { AppointmentsService } from '../src/appointments/appointments.service';
+const user={sub:'u',tenantId:'tenant',clinicId:'clinic',role:'CLINIC_OWNER'};
+const input={patientId:'patient',professionalId:'professional',serviceId:'service',startsAt:'2026-11-09T10:00:00Z',endsAt:'2026-11-09T10:30:00Z'};
+function setup(fail=false){
+ const current:any={id:'appointment',tenantId:'tenant',clinicId:'clinic',...input,startsAt:new Date(input.startsAt),endsAt:new Date(input.endsAt),notificationVersion:0,status:'SCHEDULED'};
+ const tx:any={patient:{findFirst:jest.fn().mockResolvedValue({id:'patient'})},professional:{findFirst:jest.fn().mockResolvedValue({id:'professional'})},service:{findFirst:jest.fn().mockResolvedValue({id:'service',durationMinutes:30})},clinic:{findFirstOrThrow:jest.fn().mockResolvedValue({timezone:'Europe/Madrid'})},scheduleRule:{findMany:jest.fn().mockResolvedValue([{weekday:1,startsAtMinute:540,endsAtMinute:780,validFrom:new Date('2026-10-01'),validTo:new Date('2026-12-31')}])},timeOff:{findFirst:jest.fn().mockResolvedValue(null)},appointment:{
+  findFirst:jest.fn().mockImplementation(({where})=>Promise.resolve(where.id==='appointment'?{...current}:null)),
+  create:jest.fn().mockImplementation(({data})=>Promise.resolve({id:'new',...data,notificationVersion:0})),
+  update:jest.fn().mockImplementation(({data})=>{const version=current.notificationVersion+1;Object.assign(current,data,{notificationVersion:version});return Promise.resolve({...current});}),
+  updateMany:jest.fn().mockImplementation(({data})=>{Object.assign(current,{status:data.status,notificationVersion:current.notificationVersion+(data.notificationVersion?1:0)});return Promise.resolve({count:1});}),
+  findFirstOrThrow:jest.fn().mockImplementation(()=>Promise.resolve({...current}))},automationEvent:{create:jest.fn().mockImplementation(({data})=>{if(fail)throw new Error('outbox unavailable');return Promise.resolve({id:'event',...data});})}};
+ const prisma:any={...tx,$transaction:jest.fn().mockImplementation(async(fn:any)=>{const before={...current};try{return await fn(tx);}catch(error){Object.assign(current,before);throw error;}})};
+ return {service:new AppointmentsService(prisma,{write:jest.fn()} as any),prisma,current};
+}
+describe('Appointment automation events',()=>{
+ it('writes a creation event with version in the same transaction as the appointment',async()=>{const {service,prisma}=setup();await service.create(user,input);expect(prisma.automationEvent.create).toHaveBeenCalledWith({data:expect.objectContaining({tenantId:'tenant',clinicId:'clinic',type:'appointment.created',payload:expect.objectContaining({appointmentId:'new',version:0})})});});
+ it('increments the version when rescheduling and records the new event',async()=>{const {service,prisma,current}=setup();await service.reschedule(user,'appointment',{...input,startsAt:'2026-11-09T10:30:00Z',endsAt:'2026-11-09T11:00:00Z'});expect(current.notificationVersion).toBe(1);expect(prisma.automationEvent.create).toHaveBeenCalledWith({data:expect.objectContaining({type:'appointment.rescheduled',payload:expect.objectContaining({appointmentId:'appointment',version:1})})});});
+ it('does not duplicate the reminder version just for confirming an existing booking',async()=>{const {service,current}=setup();await service.updateStatus(user,'appointment','CONFIRMED');expect(current.notificationVersion).toBe(0);});
+ it('does not generate duplicate events for unchanged appointment saves or status',async()=>{const {service,current,prisma}=setup();await service.reschedule(user,'appointment',input);await service.updateStatus(user,'appointment','SCHEDULED');expect(prisma.automationEvent.create).not.toHaveBeenCalled();expect(current.notificationVersion).toBe(0);});
+ it('records cancellations with their current version',async()=>{const {service,prisma,current}=setup();await service.updateStatus(user,'appointment','CANCELLED');expect(current.notificationVersion).toBe(1);expect(prisma.automationEvent.create).toHaveBeenCalledWith({data:expect.objectContaining({type:'appointment.status_changed',payload:{appointmentId:'appointment',status:'CANCELLED',version:1}})});});
+ it('rolls back an update if its outbox event cannot be persisted',async()=>{const {service,current}=setup(true);await expect(service.updateStatus(user,'appointment','CANCELLED')).rejects.toThrow('outbox unavailable');expect(current.status).toBe('SCHEDULED');expect(current.notificationVersion).toBe(0);});
+});

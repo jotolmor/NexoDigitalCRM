@@ -114,3 +114,7 @@ Los horarios semanales se configuran por trimestre y profesional. Cada tramo se 
 ## Asistente OpenAI
 
 La API ofrece `POST /api/assistant/ask` (JWT requerido) para orientación de planificación. Configura `OPENAI_API_KEY` como variable secreta del servicio API en Render; `OPENAI_MODEL` es opcional y por defecto usa `gpt-4o-mini`. No pongas la clave en el frontend, en `.env.example` con un valor real ni en GitHub. El asistente de esta primera integración no consulta la agenda en vivo, no crea reservas y no envía mensajes a pacientes; las reservas siguen pasando por la validación de disponibilidad del CRM.
+
+## Conexión con n8n
+
+La base de automatizaciones de citas y el flujo inactivo para SMS, WhatsApp y llamadas están documentados en [integrations/n8n/README.md](integrations/n8n/README.md). La conexión comienza en DRY_RUN y requiere configurar n8n y el proveedor antes de activar envíos reales.

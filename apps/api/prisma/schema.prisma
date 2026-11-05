@@ -38,6 +38,8 @@ enum AutomationEventStatus {
 }
 
 enum NotificationStatus {
+  PROCESSING
+  SIMULATED
   PENDING
   SENT
   FAILED
@@ -88,6 +90,7 @@ model Clinic {
   automationEvents AutomationEvent[]
   notificationTemplates NotificationTemplate[]
   notifications Notification[]
+  automationConnection AutomationConnection?
   rooms Room[]
   waitlistEntries WaitlistEntry[]
   @@index([tenantId])
@@ -151,6 +154,12 @@ model Notification {
   payload     Json
   status      NotificationStatus @default(PENDING)
   scheduledAt DateTime           @default(now())
+  appointmentId String?
+  deduplicationKey String? @unique
+  deliveryTokenHash String?
+  claimedAt DateTime?
+  providerMessageId String?
+  lastError String?
   sentAt      DateTime?
   createdAt   DateTime           @default(now())
   clinic      Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
@@ -345,6 +354,7 @@ model Appointment {
   startsAt  DateTime
   endsAt    DateTime
   status    AppointmentStatus @default(SCHEDULED)
+  notificationVersion Int @default(0)
   createdAt DateTime          @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
@@ -406,4 +416,20 @@ model AuditLog {
   createdAt  DateTime @default(now())
   @@index([tenantId, clinicId, createdAt])
   @@index([entityType, entityId])
+}
+
+
+model AutomationConnection {
+  id String @id @default(cuid())
+  tenantId String
+  clinicId String @unique
+  tokenHash String @unique
+  enabled Boolean @default(true)
+  mode String @default("DRY_RUN")
+  channels String[] @default(["WHATSAPP"])
+  reminderMinutes Int @default(1440)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clinicId])
 }

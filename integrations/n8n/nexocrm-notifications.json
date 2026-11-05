@@ -1,0 +1,897 @@
+{
+  "name": "NexoCRM - Citas SMS WhatsApp y llamadas",
+  "nodes": [
+    {
+      "id": "cada-minuto",
+      "name": "Cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "configuracion",
+      "name": "Configuracion",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "crmBaseUrl",
+              "value": "https://nexocrm.nexodigitaldesing.com/api/automations/n8n"
+            },
+            {
+              "name": "accountSid",
+              "value": "CONFIGURAR_ACCOUNT_SID"
+            },
+            {
+              "name": "smsFrom",
+              "value": "CONFIGURAR_NUMERO_SMS"
+            },
+            {
+              "name": "voiceFrom",
+              "value": "CONFIGURAR_NUMERO_LLAMADAS"
+            },
+            {
+              "name": "whatsappFrom",
+              "value": "whatsapp:CONFIGURAR_NUMERO"
+            },
+            {
+              "name": "whatsappCreatedSid",
+              "value": "CONFIGURAR_HX_PLANTILLA"
+            },
+            {
+              "name": "whatsappConfirmedSid",
+              "value": "CONFIGURAR_HX_PLANTILLA"
+            },
+            {
+              "name": "whatsappReminderSid",
+              "value": "CONFIGURAR_HX_PLANTILLA"
+            },
+            {
+              "name": "whatsappChangedSid",
+              "value": "CONFIGURAR_HX_PLANTILLA"
+            },
+            {
+              "name": "whatsappCancelledSid",
+              "value": "CONFIGURAR_HX_PLANTILLA"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "recoger-trabajos",
+      "name": "Recoger trabajos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/claim' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({limit:10}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "separar-trabajos",
+      "name": "Separar trabajos",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "jobs",
+        "options": {}
+      }
+    },
+    {
+      "id": "validar-cita",
+      "name": "Validar cita",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/' + $('Separar trabajos').item.json.id + '/validate' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({deliveryToken:$('Separar trabajos').item.json.deliveryToken}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "sigue-vigente",
+      "name": "Sigue vigente",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Sigue vigente",
+              "leftValue": "={{ $json.allowed === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "es-simulacion",
+      "name": "Es simulacion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Es simulacion",
+              "leftValue": "={{ $('Separar trabajos').item.json.mode === 'DRY_RUN' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "registrar-simulacion",
+      "name": "Registrar simulacion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        -220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/' + $('Separar trabajos').item.json.id + '/result' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({deliveryToken:$('Separar trabajos').item.json.deliveryToken,status:'SIMULATED'}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "canal-sms",
+      "name": "Canal SMS",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Canal SMS",
+              "leftValue": "={{ $('Separar trabajos').item.json.channel === 'SMS' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "canal-whatsapp",
+      "name": "Canal WhatsApp",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Canal WhatsApp",
+              "leftValue": "={{ $('Separar trabajos').item.json.channel === 'WHATSAPP' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "canal-llamada",
+      "name": "Canal llamada",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        680
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Canal llamada",
+              "leftValue": "={{ $('Separar trabajos').item.json.channel === 'CALL' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "registrar-fallo",
+      "name": "Registrar fallo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/' + $('Separar trabajos').item.json.id + '/result' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({deliveryToken:$('Separar trabajos').item.json.deliveryToken,status:'FAILED'}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "configurar-sms",
+      "name": "Configurar SMS",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Configurar SMS",
+              "leftValue": "={{ /^AC[a-f0-9]{32}$/i.test($('Configuracion').first().json.accountSid) && /^\\+[1-9]\\d{7,14}$/.test($('Configuracion').first().json.smsFrom) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "enviar-sms",
+      "name": "Enviar SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Configuracion').first().json.accountSid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $('Configuracion').first().json.smsFrom }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ $('Separar trabajos').item.json.recipient }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $('Separar trabajos').item.json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": false
+    },
+    {
+      "id": "registrar-sms",
+      "name": "Registrar SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/' + $('Separar trabajos').item.json.id + '/result' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({deliveryToken:$('Separar trabajos').item.json.deliveryToken,status:($json.statusCode>=200 && $json.statusCode<300 && $json.body?.sid)?'SENT':'FAILED',providerMessageId:$json.body?.sid || undefined}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "configurar-whatsapp",
+      "name": "Configurar WhatsApp",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Configurar WhatsApp",
+              "leftValue": "={{ /^AC[a-f0-9]{32}$/i.test($('Configuracion').first().json.accountSid) && /^whatsapp:\\+[1-9]\\d{7,14}$/.test($('Configuracion').first().json.whatsappFrom) && /^HX[a-f0-9]{32}$/i.test(({ 'appointment.created':$('Configuracion').first().json.whatsappCreatedSid, 'appointment.confirmed':$('Configuracion').first().json.whatsappConfirmedSid, 'appointment.reminder':$('Configuracion').first().json.whatsappReminderSid, 'appointment.rescheduled':$('Configuracion').first().json.whatsappChangedSid, 'appointment.cancelled':$('Configuracion').first().json.whatsappCancelledSid })[$('Separar trabajos').item.json.eventType]) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "enviar-whatsapp",
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Configuracion').first().json.accountSid + '/Messages.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $('Configuracion').first().json.whatsappFrom }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ 'whatsapp:' + $('Separar trabajos').item.json.recipient }}"
+            },
+            {
+              "name": "ContentSid",
+              "value": "={{ ({ 'appointment.created':$('Configuracion').first().json.whatsappCreatedSid, 'appointment.confirmed':$('Configuracion').first().json.whatsappConfirmedSid, 'appointment.reminder':$('Configuracion').first().json.whatsappReminderSid, 'appointment.rescheduled':$('Configuracion').first().json.whatsappChangedSid, 'appointment.cancelled':$('Configuracion').first().json.whatsappCancelledSid })[$('Separar trabajos').item.json.eventType] }}"
+            },
+            {
+              "name": "ContentVariables",
+              "value": "={{ JSON.stringify($('Separar trabajos').item.json.variables) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": false
+    },
+    {
+      "id": "registrar-whatsapp",
+      "name": "Registrar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/' + $('Separar trabajos').item.json.id + '/result' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({deliveryToken:$('Separar trabajos').item.json.deliveryToken,status:($json.statusCode>=200 && $json.statusCode<300 && $json.body?.sid)?'SENT':'FAILED',providerMessageId:$json.body?.sid || undefined}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "configurar-llamada",
+      "name": "Configurar llamada",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        680
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Configurar llamada",
+              "leftValue": "={{ /^AC[a-f0-9]{32}$/i.test($('Configuracion').first().json.accountSid) && /^\\+[1-9]\\d{7,14}$/.test($('Configuracion').first().json.voiceFrom) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "enviar-llamada",
+      "name": "Enviar llamada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        680
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $('Configuracion').first().json.accountSid + '/Calls.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $('Configuracion').first().json.voiceFrom }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ $('Separar trabajos').item.json.recipient }}"
+            },
+            {
+              "name": "Twiml",
+              "value": "={{ '<Response><Say language=\"es-ES\">' + $('Separar trabajos').item.json.text.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</Say></Response>' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": false
+    },
+    {
+      "id": "registrar-llamada",
+      "name": "Registrar llamada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        680
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configuracion').first().json.crmBaseUrl + '/jobs/' + $('Separar trabajos').item.json.id + '/result' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({deliveryToken:$('Separar trabajos').item.json.deliveryToken,status:($json.statusCode>=200 && $json.statusCode<300 && $json.body?.sid)?'SENT':'FAILED',providerMessageId:$json.body?.sid || undefined}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Configurar SMS": {
+      "main": [
+        [
+          {
+            "node": "Enviar SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar SMS": {
+      "main": [
+        [
+          {
+            "node": "Registrar SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Registrar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar llamada": {
+      "main": [
+        [
+          {
+            "node": "Enviar llamada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar llamada": {
+      "main": [
+        [
+          {
+            "node": "Registrar llamada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Configuracion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuracion": {
+      "main": [
+        [
+          {
+            "node": "Recoger trabajos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recoger trabajos": {
+      "main": [
+        [
+          {
+            "node": "Separar trabajos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar trabajos": {
+      "main": [
+        [
+          {
+            "node": "Validar cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar cita": {
+      "main": [
+        [
+          {
+            "node": "Sigue vigente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sigue vigente": {
+      "main": [
+        [
+          {
+            "node": "Es simulacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es simulacion": {
+      "main": [
+        [
+          {
+            "node": "Registrar simulacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Canal SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canal SMS": {
+      "main": [
+        [
+          {
+            "node": "Configurar SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Canal WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canal WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Configurar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Canal llamada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canal llamada": {
+      "main": [
+        [
+          {
+            "node": "Configurar llamada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
+  },
+  "pinData": {},
+  "tags": []
+}

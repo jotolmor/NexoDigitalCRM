@@ -41,14 +41,25 @@ export class AppointmentsService {
     const appointment = await this.prisma.appointment.findFirst({ where: { id, tenantId: user.tenantId, clinicId } });
     if (!appointment) throw new NotFoundException('Cita no encontrada');
     if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(appointment.status)) throw new ConflictException('Esta cita no puede reprogramarse');
+    if (appointment.startsAt.getTime() === new Date(input.startsAt).getTime() && appointment.endsAt.getTime() === new Date(input.endsAt).getTime() && (input.patientId ?? appointment.patientId) === appointment.patientId && (input.professionalId ?? appointment.professionalId) === appointment.professionalId && (input.serviceId ?? appointment.serviceId) === appointment.serviceId && (input.roomId ?? appointment.roomId) === appointment.roomId) return appointment;
     const updated = await this.reserve(user.tenantId, clinicId, { patientId: input.patientId ?? appointment.patientId, professionalId: input.professionalId ?? appointment.professionalId, serviceId: input.serviceId ?? appointment.serviceId ?? undefined, roomId: input.roomId ?? appointment.roomId ?? undefined, startsAt: input.startsAt, endsAt: input.endsAt }, id); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.rescheduled', entityType: 'Appointment', entityId: id }); return updated;
   }
   async updateStatus(user: SessionUser, id: string, status: AppointmentStatus) {
     const clinicId = requireWriter(user);
-    const result = await this.prisma.appointment.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: { status } });
-    if (!result.count) throw new NotFoundException('Cita no encontrada');
-    const updated = await this.prisma.appointment.findUniqueOrThrow({ where: { id } }); await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.status_changed', entityType: 'Appointment', entityId: id, metadata: { status } }); return updated;
+    const { appointment: updated, changed } = await this.prisma.$transaction(async tx => {
+      const current = await tx.appointment.findFirst({ where: { id, tenantId: user.tenantId, clinicId } });
+      if (!current) throw new NotFoundException('Cita no encontrada');
+      if (current.status === status) return { appointment: current, changed: false };
+      const result = await tx.appointment.updateMany({ where: { id, tenantId: user.tenantId, clinicId, status: current.status }, data: { status, ...(['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(status) ? { notificationVersion: { increment: 1 } } : {}) } });
+      if (!result.count) throw new ConflictException('La cita ha cambiado. Actualiza los datos antes de continuar.');
+      const appointment = await tx.appointment.findFirstOrThrow({ where: { id, tenantId: user.tenantId, clinicId } });
+      await tx.automationEvent.create({ data: { tenantId: user.tenantId, clinicId, type: 'appointment.status_changed', payload: { appointmentId: id, status, version: appointment.notificationVersion } } });
+      return { appointment, changed: true };
+    });
+    if (changed) await this.audit.write({ tenantId: user.tenantId, clinicId, actorUserId: user.sub, action: 'appointment.status_changed', entityType: 'Appointment', entityId: id, metadata: { status } });
+    return updated;
   }
+
   private async reserve(tenantId: string, clinicId: string, input: { patientId: string; professionalId: string; serviceId?: string; roomId?: string; startsAt: string; endsAt: string }, replaceId?: string) {
     const startsAt = new Date(input.startsAt), endsAt = new Date(input.endsAt);
     if (!(startsAt < endsAt)) throw new ConflictException('El intervalo de la cita no es válido');
@@ -73,9 +84,13 @@ export class AppointmentsService {
       const clash = await tx.appointment.findFirst({ where: { tenantId, clinicId, professionalId: professional.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } });
       if (clash) throw new ConflictException('El profesional ya tiene una cita en ese horario');
       if (room && await tx.appointment.findFirst({ where: { tenantId, clinicId, roomId: room.id, ...(replaceId ? { id: { not: replaceId } } : {}), status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } })) throw new ConflictException('El gabinete ya está reservado en ese horario');
-      if (replaceId) return tx.appointment.update({ where: { id: replaceId }, data: { patientId: patient.id, professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt, status: 'SCHEDULED' } });
+      if (replaceId) {
+        const updated = await tx.appointment.update({ where: { id: replaceId }, data: { patientId: patient.id, professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt, status: 'SCHEDULED', notificationVersion: { increment: 1 } } });
+        await tx.automationEvent.create({ data: { tenantId, clinicId, type: 'appointment.rescheduled', payload: { appointmentId: replaceId, version: updated.notificationVersion, startsAt: startsAt.toISOString() } } });
+        return updated;
+      }
       const appointment = await tx.appointment.create({ data: { tenantId, clinicId, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, roomId: room?.id, startsAt, endsAt } });
-      await tx.automationEvent.create({ data: { tenantId, clinicId, type: 'appointment.created', payload: { appointmentId: appointment.id, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() } } });
+      await tx.automationEvent.create({ data: { tenantId, clinicId, type: 'appointment.created', payload: { appointmentId: appointment.id, version: appointment.notificationVersion, patientId: patient.id, professionalId: professional.id, serviceId: service?.id, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() } } });
       return appointment;
     });
   }
