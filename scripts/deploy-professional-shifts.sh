@@ -29,6 +29,7 @@ nexo_files=(
   apps/api/src/scheduling/scheduling.module.ts
   apps/api/src/scheduling/scheduling.service.ts
   apps/api/src/scheduling/shift-plan.ts
+  apps/api/src/scheduling/available-shifts.ts
   apps/api/src/scheduling/shift-assistant.service.ts
   apps/web/src/main.tsx
   apps/web/src/professional-shifts.tsx
