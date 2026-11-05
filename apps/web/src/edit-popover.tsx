@@ -2,8 +2,8 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 /** Native modal supplies focus trapping, background inertness and focus restoration. */
-export function EditPopover({ title, onClose, children, open = true, busy = false }: {
-  title: string; onClose: () => void; children: ReactNode; open?: boolean; busy?: boolean;
+export function EditPopover({ title, onClose, children, open = true, busy = false, caption = 'Actualizar información', closeLabel = 'Cerrar edición' }: {
+  title: string; onClose: () => void; children: ReactNode; open?: boolean; busy?: boolean; caption?: string; closeLabel?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -19,6 +19,7 @@ export function EditPopover({ title, onClose, children, open = true, busy = fals
       queueMicrotask(() => { if (opener?.isConnected) opener.focus(); });
     };
   }, [open]);
+  useEffect(() => { dialog.current?.querySelector('button')?.focus(); }, [title]);
   if (!open) return <>{children}</>;
   return createPortal(<dialog ref={dialog} className="workspace-edit-dialog management" aria-labelledby={titleId}
     onKeyDown={event => {
@@ -35,8 +36,8 @@ export function EditPopover({ title, onClose, children, open = true, busy = fals
       const box = event.currentTarget.getBoundingClientRect();
       if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) onClose();
     }}>
-    <header className="edit-dialog-heading"><div><p className="eyebrow">Actualizar información</p><h2 id={titleId}>{title}</h2></div>
-      <button type="button" className="secondary edit-dialog-close" aria-label="Cerrar edición" disabled={busy} onClick={onClose}>×</button>
+    <header className="edit-dialog-heading"><div><p className="eyebrow">{caption}</p><h2 id={titleId}>{title}</h2></div>
+      <button type="button" className="secondary edit-dialog-close" aria-label={closeLabel} disabled={busy} onClick={onClose}>×</button>
     </header>
     <div className="edit-dialog-body">{children}</div>
   </dialog>, document.body);

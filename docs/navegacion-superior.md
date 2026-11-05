@@ -97,3 +97,19 @@ python scripts/test-professional-edit-browser.py
 Se comprueban clasificación y persistencia, especialidades dependientes, selección de duración, error/reintento, edición personalizada, limpieza de clasificación, compatibilidad de servicios antiguos, tarjetas verticales y editor centrado en móvil. Las pruebas utilizan datos simulados.
 
 Duración de tratamientos presenta una retícula adaptable de tarjetas verticales, con icono de reloj, nombre, precio, descripción, selector de duración y los dos botones apilados a todo el ancho. Comparte borde degradado, sombra difuminada y botones oscuros con los directorios. En móvil se apila en una columna; se conserva el editor centrado y el guardado de duración existente.
+
+
+Seguimiento muestra ahora una búsqueda horizontal con únicamente nombre del paciente, DNI y teléfono. Se exige al menos un criterio; los criterios se combinan y el nombre completo se separa en palabras que pueden aparecer en nombre o apellidos. El endpoint de pacientes mantiene la búsqueda general `search` anterior y admite `name`, `dni`, `phone`, con validación de longitudes y aislamiento por clínica. Los teléfonos se comparan por dígitos para admitir espacios, guiones y paréntesis en registros antiguos. Los resultados aparecen en un único bocadillo central, con estados de carga, error, reintento y sin coincidencias. Las tarjetas de pacientes del listado y los resultados son verticales. Desde cada tarjeta se consulta, edita o completa el seguimiento ya existente, sin diálogos anidados. Se retira el formulario anterior de creación de tareas; los registros previos y sus endpoints se conservan.
+
+El alta compartida de nuevo cliente/paciente y la edición incorporan DNI opcional (también permite NIE). Se normaliza a mayúsculas sin espacios, puntos o guiones, se valida como identificador alfanumérico de 3 a 20 caracteres y se muestra en su ficha. No se comprueba el dígito de control ni se integra un sistema de facturación: el identificador queda disponible en los datos del cliente. El campo es opcional para conservar compatibilidad con pacientes antiguos. La migración `20261105180000_patient_dni` añade únicamente `Patient.dni`, sin borrar datos.
+
+`scripts/deploy-patient-search.sh SHA` conserva una copia de fuentes y base de datos, compila API/web, aplica las migraciones pendientes y recrea los servicios. Incluye las migraciones opcionales anteriores para mantener coherencia del esquema y las fuentes necesarias para los cambios recientes del directorio. No sustituye los archivos personalizados del asistente ni la configuración Compose. No se ha ejecutado la migración de producción desde este entorno.
+
+```bash
+npm run test -w @nexoclinic/api -- --runTestsByPath test/patient-search.spec.ts test/patient-demographics.spec.ts
+python scripts/test-patient-followup-search-browser.py
+python scripts/test-patient-create-browser.py
+python scripts/test-professional-edit-browser.py
+```
+
+Se comprueban guardado, normalización y limpieza de DNI, compatibilidad de pacientes antiguos, filtros combinados y alcance de clínica, teléfonos con formato, resultados centrales y fichas verticales, edición/completado de seguimientos existentes, error/reintento y móvil. Las pruebas no consultan ni modifican datos reales.

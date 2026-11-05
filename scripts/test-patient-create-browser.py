@@ -50,8 +50,8 @@ async def main():
   await expect(form).to_be_visible()
   assert await page.locator('.patient-create-panel').evaluate('e=>e.getBoundingClientRect().bottom<=document.querySelector(".appointment-create-panel").getBoundingClientRect().top')
   inputs=form.locator('input')
-  await expect(inputs).to_have_count(10)
-  first=await inputs.first.bounding_box();email=await form.locator('input[name=email]').bounding_box();last=await inputs.last.bounding_box()
+  await expect(inputs).to_have_count(11)
+  first=await inputs.first.bounding_box();email=await form.locator('input[name=age]').bounding_box();last=await inputs.last.bounding_box()
   assert abs(first['y']-email['y'])<1 and first['x']<email['x'] and last['y']>first['y']
   values={'firstName':'   ','lastName':'  Nueva  ','email':'lucia@example.invalid','phone':' +34600000000 ','address':'  Calle Uno, 12  ','city':'  Sevilla  ','postalCode':'00321','province':'  Sevilla  ','age':'0'}
   for name,value in values.items():await form.locator(f'input[name={name}]').fill(value)
@@ -59,6 +59,7 @@ async def main():
   await expect(form.get_by_role('alert')).to_have_text('Indica el nombre y los apellidos del paciente.')
   assert not attempts
   await form.get_by_label('Nombre',exact=True).fill('  Lucía  ')
+  await form.get_by_label('DNI',exact=True).fill('12345678Z')
   await form.get_by_role('button',name='Guardar paciente',exact=True).click()
   await expect(form.get_by_role('alert')).to_have_text('No se pudo guardar el paciente.')
   await expect(form.get_by_label('Nombre',exact=True)).to_have_value('  Lucía  ')
@@ -70,7 +71,7 @@ async def main():
   await expect(booking.locator('select[name=patientId] option:checked')).to_have_text('Lucía Nueva')
   await expect(form.get_by_label('Nombre',exact=True)).to_have_value('')
   assert len(attempts)==2 and len(people)==2
-  assert attempts[-1]=={'firstName':'Lucía','lastName':'Nueva','email':'lucia@example.invalid','phone':'+34600000000','address':'Calle Uno, 12','city':'Sevilla','postalCode':'00321','province':'Sevilla','age':0}
+  assert attempts[-1]=={'firstName':'Lucía','lastName':'Nueva','dni':'12345678Z','email':'lucia@example.invalid','phone':'+34600000000','address':'Calle Uno, 12','city':'Sevilla','postalCode':'00321','province':'Sevilla','age':0}
   await expect(page.locator('.overview-roster')).to_contain_text('No hay citas para este día.')
   await form.screenshot(path='/tmp/nexocrm-patient-create-horizontal.png')
   await page.set_viewport_size({'width':390,'height':844})
@@ -110,9 +111,11 @@ async def main():
   await edit.get_by_label('Código postal',exact=True).fill('00456')
   await edit.get_by_label('Localidad',exact=True).fill('Madrid')
   await edit.get_by_label('Provincia',exact=True).fill('Madrid')
+  await edit.get_by_label('DNI',exact=True).fill('X1234567L')
   await edit.get_by_role('button',name='Guardar cambios',exact=True).click()
   await expect(row).to_contain_text('24 años')
   await expect(row).to_contain_text('00456')
+  assert updates[0]['dni']=='X1234567L'
   assert len(updates)==1 and updates[0]['dateOfBirth']=='2001-12-06' and 'age' not in updates[0]
   await nav.get_by_role('button',name='Citas',exact=True).click()
   await expect(booking.locator('select[name=patientId] option',has_text='Mario Ejemplo')).to_have_count(1)

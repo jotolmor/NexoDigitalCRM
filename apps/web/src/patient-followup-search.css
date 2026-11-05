@@ -1,0 +1,17 @@
+.followup-search-layout { grid-template-columns: minmax(0, 1fr); }
+.followup-search-layout > .followup-search-form { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; }
+.followup-search-form > :is(h2, .error) { grid-column: 1 / -1; }
+.followup-search-form > button { min-height: 44px; }
+.followup-patient-cards .directory-list { margin: 0; padding: 0; list-style: none; }
+.followup-patient-cards .directory-record { height: 100%; }
+.followup-patient-count, .patient-directory-dni { color: #475569; font-size: .8rem; }
+.followup-patient-identity { display: grid; justify-items: center; gap: 14px; text-align: center; }
+.followup-patient-detail { display: grid; gap: 18px; }
+.followup-patient-detail h3, .followup-patient-detail p { margin: 0; }
+.followup-task-list { display: grid; gap: 14px; list-style: none; margin: 0; padding: 0; }
+.followup-task-list > li { display: grid; gap: 10px; min-width: 0; padding: 18px; border: 1px solid transparent; border-radius: 16px; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: var(--crm-card-shadow); overflow-wrap: anywhere; }
+.followup-task-list > li > :is(p, span) { font-size: .85rem; }
+.followup-task-list > li > div { display: flex; flex-wrap: wrap; gap: 10px; }
+.followup-task-list .status { width: max-content; }
+@media (max-width: 850px) { .followup-search-layout > .followup-search-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .followup-search-layout > .followup-search-form { grid-template-columns: minmax(0, 1fr); } }

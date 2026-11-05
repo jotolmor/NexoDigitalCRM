@@ -104,7 +104,7 @@ async def main():
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
   await page.set_viewport_size({'width':1440,'height':1000})
   # Every other edit action uses the same central dialog and preserves save paths.
-  for view,button,title,field,value in [('Servicios','Editar','Editar Revisión','Nombre','Revisión completa'),('Tratamientos','Editar tratamiento','Editar tratamiento','Nombre','Revisión actualizada'),('Seguimiento','Editar','Editar seguimiento: Confirmar revisión','Asunto','Confirmar mañana')]:
+  for view,button,title,field,value in [('Servicios','Editar','Editar Revisión','Nombre','Revisión completa'),('Tratamientos','Editar tratamiento','Editar tratamiento','Nombre','Revisión actualizada')]:
    await nav.get_by_role('button',name=view,exact=True).click()
    await page.get_by_role('button',name=button,exact=True).click()
    dialog=page.get_by_role('dialog',name=title,exact=True)

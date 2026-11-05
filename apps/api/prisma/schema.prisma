@@ -204,6 +204,7 @@ model Patient {
   clinicId  String
   firstName String
   lastName  String
+  dni       String?
   email     String?
   phone     String?
   address   String?
