@@ -1,10 +1,11 @@
+import { prepareShiftSwap } from '../src/scheduling/shift-swap';
 import { ShiftAssistantService } from '../src/scheduling/shift-assistant.service';
 const user = { sub:'u',tenantId:'tenant',clinicId:'clinic',role:'CLINIC_OWNER' };
 const rule = {professionalId:'pro',weekday:1,startsAtMinute:540,endsAtMinute:780,validFrom:'2026-10-01',validTo:'2026-12-31'};
 const plan=[{kind:'create',rule,summary:'Asignar: Clara · Lunes · 09:00–13:00'}];
 const originalFetch=global.fetch, originalKey=process.env.OPENAI_API_KEY;
 function setup() {
- const scheduling:any={previewAvailable:jest.fn().mockResolvedValue({changes:plan,omittedCount:0,alternatives:[]}),rules:jest.fn().mockResolvedValue([{...rule,id:'r'}]),apply:jest.fn().mockResolvedValue([{...rule,id:'r'}])};
+ const scheduling:any={previewSwap:jest.fn(),previewAvailable:jest.fn().mockResolvedValue({changes:plan,omittedCount:0,alternatives:[]}),rules:jest.fn().mockResolvedValue([{...rule,id:'r'}]),apply:jest.fn().mockResolvedValue([{...rule,id:'r'}])};
  const prisma:any={clinic:{findFirst:jest.fn().mockResolvedValue({timezone:'Europe/Madrid'})},professional:{findMany:jest.fn().mockResolvedValue([{id:'pro',firstName:'Clara',lastName:'Montoro'}])}};
  return {service:new ShiftAssistantService(prisma,scheduling),scheduling,prisma};
 }
@@ -55,5 +56,21 @@ describe('Shift assistant',()=>{
   const {service,scheduling}=setup();mockPlan();const id=(await service.ask(user,'Cambia el turno')).pendingAction!.proposalId;
   const {ConflictException}=await import('@nestjs/common');scheduling.apply.mockRejectedValue(new ConflictException('solapamiento'));
   await expect(service.confirm(user,id)).rejects.toThrow('Los turnos disponibles han cambiado');
+ });
+ it('prepares an exchange and requires the colleagues agreement before confirmation',async()=>{
+  const {service,scheduling}=setup();
+  const other={...rule,professionalId:'other',weekday:2,startsAtMinute:960,endsAtMinute:1200};
+  const swaps=prepareShiftSwap('first','second',[{...rule,id:'first'},{...other,id:'second'}],[{id:'pro',firstName:'Clara',lastName:'Montoro'},{id:'other',firstName:'Elena',lastName:'Pineda'}]);
+  scheduling.previewSwap.mockResolvedValue(swaps);
+  global.fetch=jest.fn().mockResolvedValueOnce(reply({tool_calls:[{id:'swap',function:{name:'prepare_shift_swap',arguments:JSON.stringify({firstRuleId:'first',secondRuleId:'second'})}}]})).mockResolvedValueOnce(reply({content:'Intercambio preparado. Confirma el acuerdo de ambos profesionales.'}));
+  const result=await service.ask(user,'Clara y Elena quieren intercambiar sus turnos');
+  expect(result.pendingAction?.requiresAgreement).toBe(true);expect(result.pendingAction?.summaries).toHaveLength(2);expect(scheduling.apply).not.toHaveBeenCalled();
+  await expect(service.confirm(user,result.pendingAction!.proposalId)).rejects.toThrow('están de acuerdo');expect(scheduling.apply).not.toHaveBeenCalled();
+  await service.confirm(user,result.pendingAction!.proposalId,true);expect(scheduling.apply).toHaveBeenCalledWith(user,swaps,true);
+  await expect(service.confirm(user,result.pendingAction!.proposalId,true)).rejects.toThrow();
+ });
+ it('requires agreement for custom changes involving multiple professionals too',async()=>{
+  const {service,scheduling}=setup();mockPlan();scheduling.previewAvailable.mockResolvedValue({changes:[{...plan[0],kind:'update',ruleId:'r1',before:{...rule,id:'r1'}},{...plan[0],kind:'update',ruleId:'r2',before:{...rule,id:'r2',professionalId:'other'},rule:{...rule,professionalId:'other'}}],omittedCount:0,alternatives:[]});
+  const result=await service.ask(user,'Cambia los horarios de Clara y Elena');expect(result.pendingAction?.requiresAgreement).toBe(true);
  });
 });

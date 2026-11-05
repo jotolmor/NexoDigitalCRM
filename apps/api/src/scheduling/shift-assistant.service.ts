@@ -3,14 +3,16 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma.service';
 import { SessionUser, requireClinic, requireWriter } from '../common/access';
 import { SchedulingService } from './scheduling.service';
+import { requiresColleagueAgreement } from './shift-swap';
 import { PreparedShift, shiftSnapshot } from './shift-plan';
 const fields = { professionalId: { type: 'string' }, weekday: { type: 'integer', description: 'Lunes=1 a viernes=5' }, startsAtMinute: { type: 'integer' }, endsAtMinute: { type: 'integer' }, validFrom: { type: 'string', description: 'YYYY-MM-DD' }, validTo: { type: 'string', description: 'YYYY-MM-DD' } };
 const tools = [
   { type: 'function', function: { name: 'list_professionals', description: 'Consulta los profesionales reales de la clínica. Si hay homónimos, pide aclaración.', parameters: { type: 'object', properties: {}, additionalProperties: false } } },
   { type: 'function', function: { name: 'get_shifts', description: 'Consulta todos los turnos activos reales de un profesional.', parameters: { type: 'object', properties: { professionalId: { type: 'string' } }, required: ['professionalId'], additionalProperties: false } } },
+  { type: 'function', function: { name: 'prepare_shift_swap', description: 'Prepara el intercambio completo de dos turnos reales entre profesionales diferentes, aunque sean de días u horas diferentes. Consulta antes los turnos de ambos. No guarda; la interfaz solicita confirmar el acuerdo de los profesionales y después confirmar ambos cambios juntos. No modifica citas de pacientes.', parameters: { type: 'object', properties: { firstRuleId: { type: 'string' }, secondRuleId: { type: 'string' } }, required: ['firstRuleId', 'secondRuleId'], additionalProperties: false } } },
   { type: 'function', function: { name: 'prepare_shift_changes', description: 'Comprueba de 1 a 20 cambios y prepara únicamente los que se pueden aplicar. Si ninguno está disponible, devuelve alternativas reales que requieren la elección del usuario. No guarda. Para update/remove usa el ruleId obtenido de get_shifts. Un cambio create/update necesita todos los campos de rule.', parameters: { type: 'object', properties: { changes: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: { kind: { type: 'string', enum: ['create', 'update', 'remove'] }, ruleId: { type: 'string' }, rule: { type: 'object', properties: fields, required: Object.keys(fields), additionalProperties: false } }, required: ['kind'], additionalProperties: false } } }, required: ['changes'], additionalProperties: false } } }
 ];
-type Proposal = { actor: string; expiresAt: number; changes: PreparedShift[] };
+type Proposal = { actor: string; expiresAt: number; changes: PreparedShift[]; requiresAgreement: boolean };
 @Injectable()
 export class ShiftAssistantService {
   private proposals = new Map<string, Proposal>();
@@ -27,9 +29,9 @@ export class ShiftAssistantService {
     const timezone = clinic?.timezone ?? 'Europe/Madrid';
     const now = new Date();
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-    const messages: any[] = [{ role: 'system', content: `Eres Nexo IA, asistente de turnos de profesionales. Hoy es ${today}, instante ${now.toISOString()}, zona ${timezone}. Los minutos representan horas locales, nunca UTC. Profesional seleccionado: ${selectedProfessionalId || 'ninguno'}; confirma su nombre con herramientas. Responde en español. Usa herramientas para consultar profesionales y turnos, nunca inventes IDs ni asignaciones. Pregunta por datos ambiguos o ausentes, incluidas fechas de vigencia; no deduzcas un profesional homónimo. Solo prepara cambios cuando el usuario lo ordene. Las herramientas no guardan: el usuario debe pulsar Confirmar cambios. No afirmes que guardaste antes de la confirmación. No modifiques citas, pacientes ni datos externos. Respeta turnos de lunes a viernes: inicio por horas 09:00 a 13:00 o 16:00 a 20:00; final cada 15 minutos hasta 14:00 o 21:00; duración máxima 5 horas. Para jornadas con mañana y tarde prepara dos turnos por día. Revisa los turnos actuales antes de proponer modificaciones o retiradas. Muestra únicamente profesionales y cambios disponibles; no listes cambios descartados ni mensajes técnicos de conflictos. Si hay alternativas, ofrece sólo las devueltas por las herramientas y espera a que el usuario elija antes de preparar otro horario.` },
+    const messages: any[] = [{ role: 'system', content: `Eres Nexo IA, asistente de turnos de profesionales. Hoy es ${today}, instante ${now.toISOString()}, zona ${timezone}. Los minutos representan horas locales, nunca UTC. Profesional seleccionado: ${selectedProfessionalId || 'ninguno'}; confirma su nombre con herramientas. Responde en español. Usa herramientas para consultar profesionales y turnos, nunca inventes IDs ni asignaciones. Pregunta por datos ambiguos o ausentes, incluidas fechas de vigencia; no deduzcas un profesional homónimo. Solo prepara cambios cuando el usuario lo ordene. Las herramientas no guardan: el usuario debe pulsar Confirmar cambios. No afirmes que guardaste antes de la confirmación. No modifiques citas, pacientes ni datos externos. Respeta turnos de lunes a viernes: inicio por horas 09:00 a 13:00 o 16:00 a 20:00; final cada 15 minutos hasta 14:00 o 21:00; duración máxima 5 horas. Para jornadas con mañana y tarde prepara dos turnos por día. Revisa los turnos actuales antes de proponer modificaciones o retiradas. Si dos compañeros quieren intercambiar turnos, consulta los turnos de ambos y usa prepare_shift_swap: puede intercambiar días y horas diferentes y guarda ambos cambios juntos. No rechaces el intercambio por las citas existentes: las citas y sus profesionales no se modifican. Si sólo desean un día o periodo concreto, pide precisión antes de intercambiar una regla completa. No supongas que los compañeros están de acuerdo; la interfaz exige que el usuario confirme su acuerdo antes de guardar. Para cambios personalizados entre varios profesionales usa una única llamada prepare_shift_changes con todos los cambios, nunca llamadas separadas. Muestra únicamente profesionales y cambios disponibles; no listes cambios descartados ni mensajes técnicos de conflictos. Si hay alternativas, ofrece sólo las devueltas por las herramientas y espera a que el usuario elija antes de preparar otro horario.` },
       ...(Array.isArray(history) ? history : []).filter(item => item && ['user', 'assistant'].includes(item.role) && typeof item.content === 'string').slice(-24).map(item => ({ role: item.role, content: item.content.slice(0, 2000) })), { role: 'user', content: question }];
-    let pendingAction: { proposalId: string; summaries: string[]; expiresAt: string } | null = null;
+    let pendingAction: { proposalId: string; summaries: string[]; expiresAt: string; requiresAgreement: boolean } | null = null;
     for (let turn = 0; turn < 8; turn++) {
       let response: Response;
       try { response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', messages, tools, tool_choice: turn === 7 ? 'none' : 'auto', temperature: 0.2, max_tokens: 1200 }), signal: AbortSignal.timeout(30000) }); }
@@ -51,10 +53,17 @@ export class ShiftAssistantService {
           const args = JSON.parse(call.function.arguments || '{}');
           if (call.function.name === 'list_professionals') output = await this.prisma.professional.findMany({ where: { tenantId: user.tenantId, clinicId, active: true }, select: { id: true, firstName: true, lastName: true, specialty: true }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] });
           else if (call.function.name === 'get_shifts') output = (await this.scheduling.rules(user, String(args.professionalId))).map(shiftSnapshot);
-          else if (call.function.name === 'prepare_shift_changes') {
+          else if (['prepare_shift_changes', 'prepare_shift_swap'].includes(call.function.name)) {
             requireWriter(user);
             if (pendingAction) throw new ConflictException('Ya hay una propuesta pendiente.');
-            const available = await this.scheduling.previewAvailable(user, args.changes);
+            let available;
+            if (call.function.name === 'prepare_shift_swap') {
+              try { available = { changes: await this.scheduling.previewSwap(user, String(args.firstRuleId), String(args.secondRuleId)), omittedCount: 0, alternatives: [] }; }
+              catch (error) {
+                if (error instanceof ConflictException) return { answer: 'No hay un intercambio disponible con esos dos turnos. Elige otros turnos o indica los nuevos días y horas que desean ambos profesionales.', pendingAction: null };
+                throw error;
+              }
+            } else available = await this.scheduling.previewAvailable(user, args.changes);
             const changes = available.changes;
             if (!changes.length) {
               const options = available.alternatives.map(option => option.summary.replace(/^(Asignar|Modificar): /, ''));
@@ -63,8 +72,9 @@ export class ShiftAssistantService {
             for (const [id, proposal] of this.proposals) if (proposal.expiresAt <= Date.now()) this.proposals.delete(id);
             if (this.proposals.size >= 500) throw new ConflictException('Hay demasiadas propuestas pendientes. Inténtalo en unos minutos.');
             const proposalId = randomUUID(), expiresAt = Date.now() + 10 * 60 * 1000;
-            this.proposals.set(proposalId, { actor: this.actor(user), expiresAt, changes });
-            pendingAction = { proposalId, summaries: changes.map(change => change.summary), expiresAt: new Date(expiresAt).toISOString() };
+            const requiresAgreement = requiresColleagueAgreement(changes);
+            this.proposals.set(proposalId, { actor: this.actor(user), expiresAt, changes, requiresAgreement });
+            pendingAction = { proposalId, summaries: changes.map(change => change.summary), expiresAt: new Date(expiresAt).toISOString(), requiresAgreement };
             if (available.omittedCount) return { answer: 'He preparado únicamente los cambios disponibles. Revisa la propuesta y confirma para guardarlos.', pendingAction };
             output = { prepared: true, summaries: pendingAction.summaries, requiresConfirmation: true };
           } else output = { error: 'Herramienta desconocida.' };
@@ -74,11 +84,12 @@ export class ShiftAssistantService {
     }
     return { answer: 'Revisa la propuesta de turnos o concreta los datos que faltan.', pendingAction };
   }
-  async confirm(user: SessionUser, proposalId: string) {
+  async confirm(user: SessionUser, proposalId: string, colleaguesAgree = false) {
     requireWriter(user);
     const proposal = this.proposals.get(proposalId);
     if (!proposal || proposal.expiresAt <= Date.now()) { this.proposals.delete(proposalId); throw new ConflictException('La propuesta ha caducado o ya fue confirmada. Consulta los turnos y prepara una nueva.'); }
     if (proposal.actor !== this.actor(user)) throw new ForbiddenException('La propuesta pertenece a otro usuario o clínica.');
+    if (proposal.requiresAgreement && colleaguesAgree !== true) throw new ConflictException('Confirma que los profesionales implicados están de acuerdo antes de guardar el intercambio.');
     // Consume before awaiting the transaction to prevent duplicate confirmations.
     this.proposals.delete(proposalId);
     let rules;

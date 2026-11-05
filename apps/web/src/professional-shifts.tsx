@@ -55,7 +55,9 @@ export function ProfessionalShifts({ session, timezone, load, write }: Props) {
     const element = chatHistory.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [chat.assistantHistory]);
-  const pending = chat.assistantAction as { proposalId: string; summaries: string[]; expiresAt: string } | null;
+  const pending = chat.assistantAction as { proposalId: string; summaries: string[]; expiresAt: string; requiresAgreement?: boolean } | null;
+  const [colleaguesAgree, setColleaguesAgree] = useState(false);
+  useEffect(() => { setColleaguesAgree(false); }, [pending?.proposalId]);
   async function refresh() { await Promise.all(['schedule-rules', 'calendar', 'calendar-day', 'appointment-availability'].map(key => qc.invalidateQueries({ queryKey: [key] }))); }
   async function save(input: RuleInput, current?: Shift) {
     setBusy(true); setError(''); setMessage('');
@@ -80,8 +82,8 @@ export function ProfessionalShifts({ session, timezone, load, write }: Props) {
     finally { chat.setAssistantBusy(false); }
   }
   async function confirm() {
-    if (!pending || chat.assistantBusy || busy) return; chat.setAssistantBusy(true); chat.setAssistantError('');
-    try { const result = await write('/scheduling/assistant/confirm', { proposalId: pending.proposalId }); chat.setAssistantHistory(previous => [...previous, { role: 'assistant', content: result.message }]); }
+    if (!pending || chat.assistantBusy || busy || (pending.requiresAgreement && !colleaguesAgree)) return; chat.setAssistantBusy(true); chat.setAssistantError('');
+    try { const result = await write('/scheduling/assistant/confirm', { proposalId: pending.proposalId, ...(pending.requiresAgreement ? { colleaguesAgree } : {}) }); chat.setAssistantHistory(previous => [...previous, { role: 'assistant', content: result.message }]); }
     catch (failure) { chat.setAssistantError(failure instanceof Error ? failure.message : 'No se pudo confirmar el cambio. Consulta los turnos y prepara una nueva propuesta.'); }
     finally { chat.setAssistantAction(null); await refresh(); chat.setAssistantBusy(false); }
   }
@@ -92,7 +94,7 @@ export function ProfessionalShifts({ session, timezone, load, write }: Props) {
         <div className="shift-ai-heading"><span className="patient-directory-avatar" aria-hidden="true">✦</span><div><p className="eyebrow">Nexo IA</p><h2>Asistente de turnos</h2><p>Consulta los turnos asignados o pide cambios. Revisa la propuesta y confirma para guardarla.</p></div><button className="secondary" disabled={chat.assistantBusy} onClick={chat.resetAssistantConversation}>Nueva conversación</button></div>
         {chat.assistantHistory.length > 0 && <div ref={chatHistory} className="assistant-chat-history" role="log" aria-label="Conversación del asistente de turnos" tabIndex={0} aria-live="polite">{chat.assistantHistory.map((entry, index) => <div className={'assistant-chat-message ' + entry.role} key={index}><b>{entry.role === 'user' ? 'Tú' : 'Nexo IA'}</b><span>{entry.content}</span></div>)}</div>}
         {chat.assistantError && <p className="error" role="alert">{chat.assistantError}</p>}
-        {pending && <div className="assistant-confirm-card shift-proposal"><h3>Propuesta de turnos</h3><ul>{pending.summaries.map((summary, index) => <li key={index}>{summary}</li>)}</ul><p>Las citas ya reservadas se mantienen. Esta propuesta caduca en 10 minutos.</p><div><button className="primary" disabled={chat.assistantBusy || busy} onClick={() => void confirm()}>Confirmar cambios</button><button className="secondary" disabled={chat.assistantBusy} onClick={() => chat.setAssistantAction(null)}>Descartar propuesta</button></div></div>}
+        {pending && <div className="assistant-confirm-card shift-proposal"><h3>Propuesta de turnos</h3><ul>{pending.summaries.map((summary, index) => <li key={index}>{summary}</li>)}</ul><p>Las citas ya reservadas se mantienen. Esta propuesta caduca en 10 minutos.</p><div>{pending.requiresAgreement && <label className="shift-colleague-agreement"><input type="checkbox" checked={colleaguesAgree} disabled={chat.assistantBusy || busy} onChange={event => setColleaguesAgree(event.target.checked)} />Confirmo que los profesionales implicados están de acuerdo con estos cambios.</label>}<button className="primary" disabled={chat.assistantBusy || busy || (pending.requiresAgreement && !colleaguesAgree)} onClick={() => void confirm()}>Confirmar cambios</button><button className="secondary" disabled={chat.assistantBusy} onClick={() => chat.setAssistantAction(null)}>Descartar propuesta</button></div></div>}
         <form className="assistant-ask shift-assistant-form" onSubmit={ask}><label className="workspace-visually-hidden" htmlFor="shift-ai-question">Mensaje para el asistente de turnos</label><textarea id="shift-ai-question" required minLength={2} maxLength={1000} rows={2} onKeyDown={event => {
           if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
             event.preventDefault();

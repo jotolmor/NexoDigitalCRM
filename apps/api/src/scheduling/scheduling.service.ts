@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { SessionUser, requireClinic, requireWriter } from '../common/access';
+import { prepareShiftSwap } from './shift-swap';
 import { availableShiftChanges } from './available-shifts';
 import { PreparedShift, ShiftChange, ShiftInput, prepareShifts, validShift } from './shift-plan';
 
@@ -23,6 +24,11 @@ export class SchedulingService {
     requireWriter(user);
     const { records, professionals } = await this.state(user);
     return prepareShifts(changes, records, professionals);
+  }
+  async previewSwap(user: SessionUser, firstRuleId: string, secondRuleId: string) {
+    requireWriter(user);
+    const { records, professionals } = await this.state(user);
+    return prepareShiftSwap(firstRuleId, secondRuleId, records, professionals);
   }
   async previewAvailable(user: SessionUser, changes: unknown) {
     requireWriter(user);

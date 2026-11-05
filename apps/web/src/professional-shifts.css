@@ -41,3 +41,6 @@
 .workspace-shell .assistant-chat-history::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
 .workspace-shell .assistant-chat-history::-webkit-scrollbar-thumb { background: #64748b; border: 2px solid #e2e8f0; border-radius: 8px; }
 .workspace-shell .assistant-chat-history:focus-visible { outline: 2px solid #4f46e5; outline-offset: 3px; }
+
+.shift-colleague-agreement { display: flex; align-items: flex-start; gap: 10px; flex-basis: 100%; color: #334155; line-height: 1.6; font-size: .9rem; }
+.shift-colleague-agreement input { flex: 0 0 20px; width: 20px; height: 20px; margin: 3px 0 0; accent-color: #3730a3; }

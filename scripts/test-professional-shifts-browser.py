@@ -26,6 +26,12 @@ async def main():
       fail_ask=False;await route.fulfill(status=503,json={'message':'La IA no está disponible.'},headers=headers);return
      assert body['selectedProfessionalId']=='elena'
      data={'answer':'He preparado un turno de mañana para Elena. Revisa la propuesta.','pendingAction':{'proposalId':'proposal','summaries':['Asignar: Elena Pineda · Miércoles · 09:00–13:00 · 2026-10-01 a 2026-12-31'],'expiresAt':'2026-11-05T10:10:00Z'}}
+     if 'intercambia' in body['question'].lower():
+      data={'answer':'Intercambio preparado entre Clara y Elena.','pendingAction':{'proposalId':'swap','summaries':['Clara · Antes: Martes 16:00–20:00 · Después: Miércoles 09:00–13:00','Elena · Antes: Miércoles 09:00–13:00 · Después: Martes 16:00–20:00'],'expiresAt':'2026-11-05T10:10:00Z','requiresAgreement':True}}
+    elif path=='/api/scheduling/assistant/confirm' and body.get('proposalId')=='swap':
+     assert body=={'proposalId':'swap','colleaguesAgree':True};writes.append((path,body))
+     a=next(rule for rule in rules if rule['id']=='manual');b=next(rule for rule in rules if rule['id']=='ai')
+     a.update({'weekday':3,'startsAtMinute':540,'endsAtMinute':780});b.update({'weekday':2,'startsAtMinute':960,'endsAtMinute':1200});data={'message':'Intercambio guardado. Las citas existentes se mantienen.'}
     elif path=='/api/scheduling/assistant/confirm':
      assert body=={'proposalId':'proposal'};writes.append((path,body));rules.append({'id':'ai','professionalId':'elena','weekday':3,'startsAtMinute':540,'endsAtMinute':780,'validFrom':'2026-10-01','validTo':'2026-12-31','active':True});data={'message':'1 cambio de turno guardado. Las citas existentes se mantienen.'}
     elif path=='/api/scheduling/rules':
@@ -90,6 +96,16 @@ async def main():
   assert len(writes)==before+1
   await page.get_by_role('button',name='Ver turnos de Elena',exact=True).click()
   await expect(page.locator('.professional-shift-card')).to_have_count(1)
+  await question.fill('Intercambia los turnos de Clara y Elena')
+  await question.press('Enter')
+  agreement=page.get_by_label('Confirmo que los profesionales implicados están de acuerdo con estos cambios.',exact=True)
+  await expect(agreement).to_be_visible()
+  await expect(page.get_by_role('button',name='Confirmar cambios',exact=True)).to_be_disabled()
+  count=len(writes);await agreement.check()
+  await page.get_by_role('button',name='Confirmar cambios',exact=True).click()
+  await expect(page.locator('.assistant-chat-history')).to_contain_text('Intercambio guardado')
+  assert len(writes)==count+1
+  await expect(page.locator('.professional-shift-card')).to_contain_text('16:00–20:00')
   fail_ask=True;await question.fill('Consulta los turnos de Elena');await page.get_by_role('button',name='Consultar IA',exact=True).click()
   await expect(page.get_by_role('alert')).to_contain_text('La IA no está disponible.')
   await expect(form.get_by_role('button',name='Guardar turno',exact=True)).to_be_enabled()
