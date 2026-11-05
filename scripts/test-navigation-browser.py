@@ -1,5 +1,6 @@
 """Navigation, motion preferences and assistant continuity with fixture data."""
 import asyncio, os
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from playwright.async_api import async_playwright, expect
@@ -10,6 +11,7 @@ async def main():
  async with async_playwright() as p:
   browser=await p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox'])
   page=await browser.new_page(viewport={'width':1440,'height':1000})
+  await page.clock.set_fixed_time(datetime(2026,11,5,10,tzinfo=timezone.utc))
   errors=[]; calls=[]
   page.on('pageerror',lambda e: errors.append(str(e)))
   async def api(route):
@@ -29,6 +31,9 @@ async def main():
   await page.reload()
   nav=page.get_by_role('navigation',name='Navegación principal')
   await expect(nav).to_be_visible()
+  await expect(page.locator('.workspace-header time')).to_have_attribute('datetime','2026-11-05')
+  await expect(page.locator('.workspace-date')).to_contain_text('Jueves, 5 de noviembre de 2026')
+  await expect(page.locator('.workspace-header')).not_to_contain_text('Clínica Demo')
   await expect(page.locator('aside')).to_have_count(0)
   await expect(nav.get_by_role('button')).to_have_count(9)
   await expect(nav.locator('[aria-current=page]')).to_have_text('Asistente')

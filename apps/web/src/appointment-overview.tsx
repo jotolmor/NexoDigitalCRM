@@ -1,13 +1,15 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { appointmentRoster, clinicDateKey, DayAppointment } from './overview-data';
+import { appointmentRoster, DayAppointment } from './overview-data';
 import './appointment-overview.css';
 
 type Props = {
   session: { user: { id: string; tenantId: string; clinicId?: string | null } };
   timezone: string;
   load: (path: string) => Promise<any>;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
 };
 type DayData = { date: string; timezone: string; appointments: DayAppointment[] };
 type CalendarDay = { date: string; totalMinutes: number; occupiedMinutes: number; status: 'closed' | 'free' | 'partial' | 'full' };
@@ -29,10 +31,8 @@ function Roster({ appointments, timezone }: { appointments: DayAppointment[]; ti
   )}</div>;
 }
 
-export function AppointmentOverview({ session, timezone, load }: Props) {
-  const today = clinicDateKey(new Date(), timezone);
-  const [selectedDate, setSelectedDate] = useState(today);
-  const [month, setMonth] = useState(() => { const [year, month] = today.split('-').map(Number); return new Date(year, Math.floor((month - 1) / 3) * 3, 1); });
+export function AppointmentOverview({ session, timezone, load, selectedDate, onSelectDate }: Props) {
+  const [month, setMonth] = useState(() => { const [year, month] = selectedDate.split('-').map(Number); return new Date(year, Math.floor((month - 1) / 3) * 3, 1); });
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -89,13 +89,12 @@ export function AppointmentOverview({ session, timezone, load }: Props) {
         const status = byDate.get(date)?.status ?? 'closed';
         return <button type="button" key={date} className={`calendar-day day-${status}${selectedDate === date ? ' selected' : ''}`}
           aria-label={`${date}: ${labels[status]}. Ver citas`} aria-haspopup="dialog" aria-pressed={selectedDate === date}
-          onClick={event => { opener.current = event.currentTarget; setSelectedDate(date); setAnchor(event.currentTarget.getBoundingClientRect()); }}>{index + 1}</button>;
+          onClick={event => { opener.current = event.currentTarget; onSelectDate(date); setAnchor(event.currentTarget.getBoundingClientRect()); }}>{index + 1}</button>;
       })}
     </div></section>;
   }
 
   return <div className="appointment-overview">
-    <div className="overview-date"><span className="eyebrow">{selectedDate === today ? 'Actividad de hoy' : 'Día seleccionado'}</span><p>{selectedLabel}</p></div>
     <section className="calendar-panel"><div className="calendar-heading"><div><p className="eyebrow">Calendario de citas</p><h2>Agenda · {year}</h2><p>Pulsa un día para ver sus doctores y pacientes.</p></div><div className="calendar-controls"><button type="button" className="secondary" aria-label="Trimestre anterior" onClick={() => setMonth(new Date(year, month.getMonth() - 3, 1))}>‹</button><span>{Math.floor(month.getMonth() / 3) + 1} / 4</span><button type="button" className="secondary" aria-label="Trimestre siguiente" onClick={() => setMonth(new Date(year, month.getMonth() + 3, 1))}>›</button></div></div>
       {calendar.isLoading ? <p role="status">Cargando calendario…</p> : calendar.isError ? <p className="error" role="alert">No se pudo cargar el calendario.</p> : <><div className="calendar-months">{[0, 1, 2].map(index => monthView(month.getMonth() + index))}</div><div className="calendar-legend"><span><i className="day-free" />Libre</span><span><i className="day-partial" />Ocupación parcial</span><span><i className="day-full" />Completo</span><span><i className="day-closed" />Sin horario</span></div></>}
     </section>

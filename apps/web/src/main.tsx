@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import './styles.css';
 import './calendar.css';
 import { AppointmentOverview } from './appointment-overview';
+import { clinicDateKey } from './overview-data';
 import { useAssistantConversation, clearAssistantConversations } from './assistant-conversation';
 import { Access, type Session } from './access-pages';
 import { DashboardNavigation, type WorkspaceView } from './dashboard-navigation';
@@ -113,13 +114,17 @@ function Schedules({ session }: { session: Session }) {
 }
 
 function Dashboard({ session, logout }: { session: Session; logout: () => void }) {
-  const [view, setView] = useState<View>('Asistente'); const clinic = useQuery({ queryKey: ['clinic'], queryFn: () => request('/clinic/me', session.accessToken) });
+  const [view, setView] = useState<View>('Asistente');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const clinic = useQuery({ queryKey: ['clinic'], queryFn: () => request('/clinic/me', session.accessToken) });
   if (clinic.isLoading) return <main className="center">Cargando tu clínica…</main>;
   if (clinic.isError || !clinic.data) return <main className="center"><section className="load-error"><div className="brand" role="img" aria-label="CrmNexodigitalAssist"><img className="crm-logo crm-logo-light" src="/branding/crm-nexodigital-assist-light.svg" alt="" aria-hidden="true" width="272" height="92"/><img className="crm-logo crm-logo-dark" src="/branding/crm-nexodigital-assist-dark.svg" alt="" aria-hidden="true" width="272" height="92"/></div><h1>No se pudo cargar la clínica</h1><p>La API no respondió correctamente. Comprueba tu conexión e inténtalo de nuevo.</p><button className="primary" onClick={() => { void clinic.refetch(); }}>Reintentar</button><button className="link" onClick={logout}>Volver a iniciar sesión</button></section></main>;
-  const clinicName = String(clinic.data.name ?? '').trim();
-  const clinicHeading = /^cl[ií]nica\b/i.test(clinicName) ? clinicName : ['Clínica', clinicName].filter(Boolean).join(' ');
+  const timezone = clinic.data.timezone ?? 'Europe/Madrid';
+  const today = clinicDateKey(new Date(), timezone);
+  const overviewDate = selectedDate ?? today;
+  const headerDate = view === 'Resumen' ? overviewDate : today;
   const terms: Terminology = { ...clinicTerminology, ...(clinic.data.terminology ?? {}) }; const nav: View[] = ['Asistente','Resumen','Agenda','Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Horarios']; const navLabel: Record<View, string> = { Asistente: 'Asistente', Resumen: 'Resumen', Agenda: terms.appointments[0].toUpperCase() + terms.appointments.slice(1), Pacientes: terms.customers[0].toUpperCase() + terms.customers.slice(1), Profesionales: terms.professionals[0].toUpperCase() + terms.professionals.slice(1), Servicios: terms.services[0].toUpperCase() + terms.services.slice(1), Tratamientos: 'Tratamientos', Seguimiento: 'Seguimiento', Horarios: 'Horarios' };
-  return <div className="shell workspace-shell"><DashboardNavigation items={nav.map(view => ({ view, label: navLabel[view] }))} active={view} clinicName={clinicName} onSelect={setView} onLogout={logout} /><main id="workspace-content" tabIndex={-1}>{view === 'Asistente' ? <AssistantPage session={session} /> : view === 'Resumen' ? <><header><div><h1 className="overview-clinic-title">{clinicHeading}</h1></div></header><AppointmentOverview session={session} timezone={clinic.data.timezone} load={path => request(path, session.accessToken)} /></> : view === 'Agenda' ? <Agenda session={session} /> : view === 'Tratamientos' ? <TreatmentDurations session={session} /> : view === 'Seguimiento' ? <FollowUps session={session} /> : view === 'Horarios' ? <Schedules session={session} /> : <Directory session={session} view={view} />}</main></div>;
+  return <div className="shell workspace-shell"><DashboardNavigation items={nav.map(view => ({ view, label: navLabel[view] }))} active={view} date={headerDate} isToday={headerDate === today} onSelect={setView} onLogout={logout} /><main id="workspace-content" tabIndex={-1}>{view === 'Asistente' ? <AssistantPage session={session} /> : view === 'Resumen' ? <><h1 className="workspace-visually-hidden">Resumen de agenda</h1><AppointmentOverview session={session} timezone={timezone} selectedDate={overviewDate} onSelectDate={setSelectedDate} load={path => request(path, session.accessToken)} /></> : view === 'Agenda' ? <Agenda session={session} /> : view === 'Tratamientos' ? <TreatmentDurations session={session} /> : view === 'Seguimiento' ? <FollowUps session={session} /> : view === 'Horarios' ? <Schedules session={session} /> : <Directory session={session} view={view} />}</main></div>;
 }
 function App(){const [s,setS]=useState<Session|null>(()=>{const x=localStorage.getItem('nexoclinic-session');return x?JSON.parse(x):null});const set=(x:Session)=>{localStorage.setItem('nexoclinic-session',JSON.stringify(x));setS(x)};useEffect(()=>{const expire=()=>{clearAssistantConversations();localStorage.removeItem('nexoclinic-session');setS(null)};window.addEventListener('nexoclinic:session-expired',expire);return()=>window.removeEventListener('nexoclinic:session-expired',expire)},[]);return s?<Dashboard session={s} logout={()=>{clearAssistantConversations();localStorage.removeItem('nexoclinic-session');setS(null)}}/>:<Access onSession={set}/>};
 createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={new QueryClient()}><App/></QueryClientProvider></React.StrictMode>);
