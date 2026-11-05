@@ -141,3 +141,5 @@ python scripts/test-professional-edit-browser.py
 Las pruebas cubren fechas inválidas, conflictos, propuestas obsoletas, permisos y alcance de clínica, confirmación única, caducidad, rollback de lote, gestión manual, propuestas sin escrituras, refresco tras confirmación, aislamiento del chat y tamaños móviles. `scripts/deploy-professional-shifts.sh SHA` prepara copias de fuentes/base de datos y actualiza API/web conservando el asistente de citas personalizado y Compose. No se necesita una migración nueva para turnos; el script incluye las migraciones anteriores para instalaciones con cambios pendientes.
 
 Se conserva la reserva manual desde un turno existente mediante `shift-reservation.tsx`, ahora con el formulario en un bocadillo central.
+
+El chat tiene altura máxima adaptable, desplazamiento independiente y barra de scroll visible cuando hay más mensajes. El asistente de turnos desplaza el historial al mensaje más reciente; Enter envía mediante el mismo formulario que Consultar IA y Shift+Enter permite un salto de línea. Se respetan la composición de texto y el estado de envío para evitar envíos repetidos.

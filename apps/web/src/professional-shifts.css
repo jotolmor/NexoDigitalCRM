@@ -34,3 +34,10 @@
 @media (max-width: 540px) { .shifts-manual-panel > .shift-rule-form, .shift-assistant-form { grid-template-columns: minmax(0, 1fr); } .shift-ai-heading > div { flex-basis: 70%; } .shift-form-actions > button { width: 100%; } }
 
 .professional-shift-card .shift-reservation > button { width: 100%; min-height: 42px; }
+
+/* Keep conversations contained and independently scrollable on every screen. */
+.workspace-shell .assistant-chat-history { max-height: min(400px, 50dvh); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #64748b #e2e8f0; padding-right: 10px; }
+.workspace-shell .assistant-chat-history::-webkit-scrollbar { width: 8px; }
+.workspace-shell .assistant-chat-history::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
+.workspace-shell .assistant-chat-history::-webkit-scrollbar-thumb { background: #64748b; border: 2px solid #e2e8f0; border-radius: 8px; }
+.workspace-shell .assistant-chat-history:focus-visible { outline: 2px solid #4f46e5; outline-offset: 3px; }

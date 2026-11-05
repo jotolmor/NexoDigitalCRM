@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type Session } from './access-pages';
 import { EditPopover } from './edit-popover';
@@ -50,6 +50,11 @@ export function ProfessionalShifts({ session, timezone, load, write }: Props) {
   const [editing, setEditing] = useState<Shift | null>(null), [removing, setRemoving] = useState<Shift | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   const chat = useAssistantConversation(session, 'professional-shifts');
+  const chatHistory = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = chatHistory.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [chat.assistantHistory]);
   const pending = chat.assistantAction as { proposalId: string; summaries: string[]; expiresAt: string } | null;
   async function refresh() { await Promise.all(['schedule-rules', 'calendar', 'calendar-day', 'appointment-availability'].map(key => qc.invalidateQueries({ queryKey: [key] }))); }
   async function save(input: RuleInput, current?: Shift) {
@@ -85,10 +90,15 @@ export function ProfessionalShifts({ session, timezone, load, write }: Props) {
     <div className="professional-shifts-page">
       <section className="panel shifts-assistant-panel" aria-label="Asistente IA de turnos">
         <div className="shift-ai-heading"><span className="patient-directory-avatar" aria-hidden="true">✦</span><div><p className="eyebrow">Nexo IA</p><h2>Asistente de turnos</h2><p>Consulta los turnos asignados o pide cambios. Revisa la propuesta y confirma para guardarla.</p></div><button className="secondary" disabled={chat.assistantBusy} onClick={chat.resetAssistantConversation}>Nueva conversación</button></div>
-        {chat.assistantHistory.length > 0 && <div className="assistant-chat-history" aria-live="polite">{chat.assistantHistory.map((entry, index) => <div className={'assistant-chat-message ' + entry.role} key={index}><b>{entry.role === 'user' ? 'Tú' : 'Nexo IA'}</b><span>{entry.content}</span></div>)}</div>}
+        {chat.assistantHistory.length > 0 && <div ref={chatHistory} className="assistant-chat-history" role="log" aria-label="Conversación del asistente de turnos" tabIndex={0} aria-live="polite">{chat.assistantHistory.map((entry, index) => <div className={'assistant-chat-message ' + entry.role} key={index}><b>{entry.role === 'user' ? 'Tú' : 'Nexo IA'}</b><span>{entry.content}</span></div>)}</div>}
         {chat.assistantError && <p className="error" role="alert">{chat.assistantError}</p>}
         {pending && <div className="assistant-confirm-card shift-proposal"><h3>Propuesta de turnos</h3><ul>{pending.summaries.map((summary, index) => <li key={index}>{summary}</li>)}</ul><p>Las citas ya reservadas se mantienen. Esta propuesta caduca en 10 minutos.</p><div><button className="primary" disabled={chat.assistantBusy || busy} onClick={() => void confirm()}>Confirmar cambios</button><button className="secondary" disabled={chat.assistantBusy} onClick={() => chat.setAssistantAction(null)}>Descartar propuesta</button></div></div>}
-        <form className="assistant-ask shift-assistant-form" onSubmit={ask}><label className="workspace-visually-hidden" htmlFor="shift-ai-question">Mensaje para el asistente de turnos</label><textarea id="shift-ai-question" required minLength={2} maxLength={1000} rows={2} value={chat.assistantDraft} disabled={chat.assistantBusy || busy} onChange={event => chat.setAssistantDraft(event.target.value)} placeholder="Ejemplo: consulta los turnos de Clara Montoro del próximo trimestre." /><button className="primary" disabled={chat.assistantBusy || busy}>{chat.assistantBusy ? 'Consultando…' : 'Consultar IA'}</button></form>
+        <form className="assistant-ask shift-assistant-form" onSubmit={ask}><label className="workspace-visually-hidden" htmlFor="shift-ai-question">Mensaje para el asistente de turnos</label><textarea id="shift-ai-question" required minLength={2} maxLength={1000} rows={2} onKeyDown={event => {
+          if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+            event.preventDefault();
+            if (!event.repeat && !chat.assistantBusy && !busy) event.currentTarget.form?.requestSubmit();
+          }
+        }} value={chat.assistantDraft} disabled={chat.assistantBusy || busy} onChange={event => chat.setAssistantDraft(event.target.value)} placeholder="Ejemplo: consulta los turnos de Clara Montoro del próximo trimestre." /><button className="primary" disabled={chat.assistantBusy || busy}>{chat.assistantBusy ? 'Consultando…' : 'Consultar IA'}</button></form>
       </section>
       <section className="panel professional-shift-picker"><div className="directory-list-heading"><div><p className="eyebrow">Tu equipo</p><h2>Profesionales y turnos asignados</h2></div><span className="schedule-total">{professionals.data?.length ?? 0}</span></div>
         {professionals.isLoading ? <p>Cargando profesionales…</p> : professionals.isError ? <div role="alert"><p>No se pudieron cargar los profesionales.</p><button className="secondary" onClick={() => void professionals.refetch()}>Reintentar profesionales</button></div> : professionals.data?.length ? <ul className="shift-professional-grid">{professionals.data.map(person => <li key={person.id} className={'shift-professional-card' + (professionalId === person.id ? ' selected' : '')}><span className="patient-directory-avatar" aria-hidden="true">{person.firstName.charAt(0)}{person.lastName.charAt(0)}</span><h3>{person.firstName} {person.lastName}</h3><p>{person.specialty}</p><span>{shifts.isError ? 'Turnos no disponibles' : shifts.isLoading ? 'Cargando turnos…' : `${shifts.data?.filter(rule => rule.professionalId === person.id).length ?? 0} ${shifts.data?.filter(rule => rule.professionalId === person.id).length === 1 ? 'turno' : 'turnos'}`}</span><button type="button" className="secondary" aria-pressed={professionalId === person.id} onClick={() => setSelectedId(person.id)}>Ver turnos de {person.firstName}</button></li>)}</ul> : <p className="empty">Añade profesionales desde su sección para asignarles turnos.</p>}

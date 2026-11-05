@@ -11,7 +11,7 @@ async def main():
   await page.clock.set_fixed_time(datetime(2026,11,5,10,tzinfo=timezone.utc))
   professionals=[{'id':'clara','firstName':'Clara','lastName':'Montoro','specialty':'Odontología general'},{'id':'elena','firstName':'Elena','lastName':'Pineda','specialty':'Odontopediatría'}]
   rules=[{'id':'rule','professionalId':'clara','weekday':1,'startsAtMinute':540,'endsAtMinute':780,'validFrom':'2026-10-01','validTo':'2026-12-31','active':True}]
-  writes=[];errors=[];fail_ask=False
+  writes=[];errors=[];asks=[];fail_ask=False
   page.on('pageerror',lambda error:errors.append(str(error)))
   async def api(route):
    nonlocal fail_ask
@@ -21,6 +21,7 @@ async def main():
    if req.method in ['POST','PATCH']:
     body=req.post_data_json
     if path=='/api/scheduling/assistant/ask':
+     asks.append(body)
      if fail_ask:
       fail_ask=False;await route.fulfill(status=503,json={'message':'La IA no está disponible.'},headers=headers);return
      assert body['selectedProfessionalId']=='elena'
@@ -70,8 +71,12 @@ async def main():
   await expect(page.locator('.shifts-roster-panel')).to_contain_text('no tiene turnos asignados')
   before=len(writes)
   question=page.get_by_label('Mensaje para el asistente de turnos',exact=True)
+  await question.fill('Asigna a Elena')
+  await question.press('Shift+Enter')
+  await expect(question).to_have_value('Asigna a Elena\n')
+  assert not asks
   await question.fill('Asigna a Elena el miércoles de 9 a 13 para este trimestre')
-  await page.get_by_role('button',name='Consultar IA',exact=True).click()
+  await question.press('Enter')
   await expect(page.get_by_role('heading',name='Propuesta de turnos')).to_be_visible()
   assert len(writes)==before
   await page.screenshot(path='/tmp/nexocrm-professional-shifts-desktop.png',full_page=True)
@@ -91,6 +96,16 @@ async def main():
   for width in [1024,768,390,320]:
    await page.set_viewport_size({'width':width,'height':844})
    assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth'),width
+  fail_ask=False
+  for index in range(4):
+   await question.fill('Consulta de turnos '+str(index))
+   await question.press('Enter')
+   await expect(page.get_by_role('button',name='Consultar IA',exact=True)).to_be_enabled()
+  log=page.get_by_role('log',name='Conversación del asistente de turnos')
+  assert await log.evaluate('e=>e.scrollHeight>e.clientHeight')
+  assert await log.evaluate('e=>Math.abs(e.scrollHeight-e.clientHeight-e.scrollTop)<3')
+  await log.evaluate('e=>e.scrollTop=0')
+  assert await log.evaluate('e=>e.scrollTop')==0
   await page.screenshot(path='/tmp/nexocrm-professional-shifts-mobile.png',full_page=True)
   assert not errors,errors
   await browser.close()
