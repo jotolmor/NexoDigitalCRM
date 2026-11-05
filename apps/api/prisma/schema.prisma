@@ -208,6 +208,10 @@ model Patient {
   phone     String?
   address   String?
   city      String?
+  postalCode String?
+  province  String?
+  age       Int?
+  dateOfBirth DateTime? @db.Date
   createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)

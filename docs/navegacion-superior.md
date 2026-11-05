@@ -46,10 +46,21 @@ La prueba de navegador del calendario cubre también detalles de cada tipo de ta
 
 Próximas citas utiliza también tarjetas verticales en una retícula adaptable, con borde degradado y relieve 3D a juego con doctores y pacientes. Conserva los botones de edición, recordatorios y rutas. El formulario de edición se adapta al ancho de cada tarjeta y los efectos de elevación respetan la reducción de movimiento.
 
-El formulario compartido `patient-create-form.tsx` conserva los seis campos del alta de Pacientes: nombre, apellidos, correo, teléfono, dirección y municipio. En Citas se sitúa sobre Agenda/Nueva cita, con seis columnas en escritorio y adaptación progresiva a tres, dos y una columna. Tras guardar, invalida los listados de pacientes y selecciona al nuevo paciente en el formulario de reserva. Los errores conservan los datos introducidos; el botón se desactiva durante el envío. La página Pacientes utiliza el mismo componente en formato vertical.
+El formulario compartido `patient-create-form.tsx` conserva los seis campos del alta de Pacientes: nombre, apellidos, correo, teléfono, dirección y municipio. En Citas se sitúa sobre Agenda/Nueva cita, con filas horizontales en escritorio y adaptación progresiva a tres, dos y una columna. Tras guardar, invalida los listados de pacientes y selecciona al nuevo paciente en el formulario de reserva. Los errores conservan los datos introducidos; el botón se desactiva durante el envío. La página Pacientes utiliza el mismo componente en formato vertical.
 
 ```bash
 python scripts/test-patient-create-browser.py
 ```
 
 La prueba cubre ubicación y disposición horizontal, campos obligatorios, error y reintento, normalización del envío, selección automática, contactos opcionales, actualización de la página Pacientes y móvil. No realiza altas reales.
+
+El alta y la edición incluyen código postal (texto, conservando ceros iniciales), localidad (el campo `city` ya existente), provincia, edad opcional y fecha de nacimiento opcional. Si se introduce nacimiento, la edad deja de ser editable y se calcula; el servidor deriva la edad usando el día local de la clínica y la vuelve a calcular al consultar pacientes. La fecha se almacena como DATE, sin hora. Si sólo se conoce la edad se guarda como entero entre 0 y 130, incluyendo cero para menores de un año. Los clientes antiguos pueden omitir todos los campos nuevos.
+
+La migración `20261105120000_patient_details` añade cuatro columnas opcionales y una restricción de rango para edad; no elimina ni modifica las columnas anteriores. Antes de usar la nueva API hay que aplicar la migración. El script `scripts/deploy-patient-details.sh SHA` está preparado para el VPS existente: extrae únicamente los archivos necesarios, conserva una copia de fuentes, compila API/web, hace un pg_dump, ejecuta `prisma migrate deploy` y recrea sólo API/web. No toca los archivos personalizados del asistente ni reemplaza la configuración Compose.
+
+```bash
+npm run test -w @nexoclinic/api -- --runTestsByPath test/patient-demographics.spec.ts
+python scripts/test-patient-create-browser.py
+```
+
+Las pruebas cubren validación, guardado de los nuevos campos, código postal con ceros, compatibilidad de registros sin datos nuevos, edición y limpieza de campos opcionales, cumpleaños, fecha futura, día local de la clínica y cálculo de edad en el navegador. La migración se aplica en el VPS mediante el script; no se ha ejecutado contra la base de datos de producción desde este entorno.
