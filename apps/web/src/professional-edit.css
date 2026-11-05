@@ -53,3 +53,17 @@
 .workspace-shell .calendar-day.selected { color: #fff; background: #3730a3; }
 
 .workspace-edit-dialog .edit-dialog-body > form:focus-within { box-shadow: none; }
+
+/* Services share the horizontal creation form and vertical card grid. */
+.directory-layout.directory-services { grid-template-columns: minmax(0, 1fr); }
+.directory-services > .directory-create { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.directory-services > .directory-create > :is(h2, .error, .success) { grid-column: 1 / -1; }
+.directory-services > .directory-create > button { grid-column: -2 / -1; min-height: 44px; }
+.directory-services .directory-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); align-items: stretch; gap: 20px; }
+.directory-services .directory-record { display: flex; flex-direction: column; align-items: center; gap: 18px; min-width: 0; padding: 24px 20px; text-align: center; }
+.directory-services .directory-record-summary { flex: 1; gap: 12px; width: 100%; overflow-wrap: anywhere; }
+.directory-services .directory-record-summary span { line-height: 1.65; }
+.directory-services .directory-record-summary .service-card-specialty { padding: 7px 10px; border-radius: 10px; background: #eef2ff; color: #3730a3; font-size: .78rem; }
+.directory-services .directory-edit-button { width: 100%; min-height: 44px; }
+@media (max-width: 900px) { .directory-services > .directory-create { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .directory-services > .directory-create { grid-template-columns: minmax(0, 1fr); } }

@@ -82,3 +82,16 @@ python scripts/test-navigation-browser.py
 ```
 
 Las pruebas con API simulada cubren las especialidades dependientes, alta y edición profesional, especialidades antiguas, error/reintento, todos los tipos de edición, teclado, cierre y móvil. No modifican datos reales.
+
+
+Servicios utiliza también un formulario horizontal y un listado de tarjetas verticales. El alta permite elegir profesión y especialidad dependiente, duración, precio y descripción. Profesión/especialidad se guardan en el servicio y se muestran en la ficha. Los servicios antiguos se pueden editar sin clasificación; en edición se puede conservar, cambiar o eliminar la clasificación. Las especialidades personalizadas se mantienen. Los editores centrados y tonos de botones del resto del sitio se conservan.
+
+La migración `20261105170000_service_specialties` añade `Service.profession` y `Service.specialty` como texto opcional, sin modificar registros existentes. Los DTOs admiten clientes antiguos, rechazan tipos o longitudes incorrectos y permiten limpiar campos con null. La actualización conserva el aislamiento por tenant/clínica. `scripts/deploy-service-specialties.sh SHA` prepara copia de fuentes y base de datos, compila, aplica las migraciones y recrea API/web con los cuatro archivos Compose. No sustituye los archivos personalizados del asistente. La migración de producción debe ejecutarse en el VPS; no se ha aplicado desde este entorno.
+
+```bash
+npm run test -w @nexoclinic/api -- --runTestsByPath test/service-specialties.spec.ts
+python scripts/test-service-directory-browser.py
+python scripts/test-professional-edit-browser.py
+```
+
+Se comprueban clasificación y persistencia, especialidades dependientes, selección de duración, error/reintento, edición personalizada, limpieza de clasificación, compatibilidad de servicios antiguos, tarjetas verticales y editor centrado en móvil. Las pruebas utilizan datos simulados.

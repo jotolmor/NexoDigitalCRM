@@ -308,6 +308,8 @@ model Service {
   clinicId        String
   name            String
   description     String?
+  profession      String?
+  specialty       String?
   durationMinutes Int
   priceEuros      Decimal?  @db.Decimal(10, 2)
   active          Boolean  @default(true)

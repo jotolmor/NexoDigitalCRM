@@ -13,8 +13,8 @@ export class CatalogService {
     return this.prisma.professional.findFirstOrThrow({ where: { id, tenantId: user.tenantId, clinicId }, include: { services: { include: { service: true } } } });
   }
   listServices(user: SessionUser) { const clinicId = requireClinic(user); return this.prisma.service.findMany({ where: { tenantId: user.tenantId, clinicId }, orderBy: { name: 'asc' } }); }
-  createService(user: SessionUser, input: { name: string; description?: string; durationMinutes: number; priceEuros?: number }) { const clinicId = requireWriter(user); return this.prisma.service.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
-  async updateService(user: SessionUser, id: string, input: { name: string; description?: string | null; durationMinutes?: number; priceEuros?: number | null }) {
+  createService(user: SessionUser, input: { profession?: string | null; specialty?: string | null; name: string; description?: string; durationMinutes: number; priceEuros?: number }) { const clinicId = requireWriter(user); return this.prisma.service.create({ data: { tenantId: user.tenantId, clinicId, ...input } }); }
+  async updateService(user: SessionUser, id: string, input: { profession?: string | null; specialty?: string | null; name: string; description?: string | null; durationMinutes?: number; priceEuros?: number | null }) {
     const clinicId = requireWriter(user);
     const result = await this.prisma.service.updateMany({ where: { id, tenantId: user.tenantId, clinicId }, data: input });
     if (!result.count) throw new NotFoundException('Tratamiento no encontrado');
