@@ -51,6 +51,8 @@ async def main():
   await page.set_viewport_size({'width':1440,'height':1000})
   # Border moves while the card's geometry remains stable.
   card=nav.get_by_role('button',name='Asistente',exact=True)
+  await card.hover()
+  assert await card.evaluate('e=>getComputedStyle(e).transform')=='none'
   before=await card.evaluate('e=>getComputedStyle(e).getPropertyValue("--workspace-border-angle")')
   await page.wait_for_timeout(150)
   assert before!=await card.evaluate('e=>getComputedStyle(e).getPropertyValue("--workspace-border-angle")')

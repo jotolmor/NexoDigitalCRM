@@ -67,6 +67,8 @@ async def main():
   await expect(page.locator('.overview-roster')).to_contain_text('Candela Prueba')
   await expect(page.locator('.overview-roster')).to_contain_text('12:00–12:30')
   await expect(page.locator('.appointment-list')).to_contain_text('Candela Prueba')
+  await page.locator('.appointment-card').hover()
+  assert await page.locator('.appointment-card').evaluate('e=>getComputedStyle(e).transform')=='none'
   assert len(writes)==1 and writes[0][1]['startsAt']=='2026-11-05T11:00:00.000Z',writes
   await page.get_by_role('button',name='Editar cita',exact=True).click()
   edit=page.locator('.appointment-edit-form')

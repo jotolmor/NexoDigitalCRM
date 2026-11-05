@@ -1,0 +1,48 @@
+/* Shared card finish: gradient border, diffuse shadow, no raised edges or tilt. */
+:root {
+  --crm-card-border: linear-gradient(135deg, #a5b4fc, #c7d2fe 35%, #5eead4 75%, #c7d2fe);
+  --crm-card-shadow: 0 5px 18px rgb(15 23 42 / 5%);
+}
+:is(.workspace-shell, .day-popover) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro, .workspace-location-form) {
+  border: 1px solid transparent;
+  background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box;
+  box-shadow: var(--crm-card-shadow);
+  transform: none;
+  transition: border-color .18s ease, color .18s ease;
+}
+:is(.workspace-shell, .day-popover) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro):is(:hover, :focus-within) {
+  border-color: transparent;
+  box-shadow: var(--crm-card-shadow);
+  transform: none;
+}
+.workspace-shell .workspace-nav-card, .workspace-shell .workspace-nav-card.is-active,
+.workspace-shell .workspace-nav-card:hover, .workspace-shell .workspace-nav-card:focus-visible {
+  box-shadow: var(--crm-card-shadow);
+  transform: none;
+  transition: color .18s ease;
+}
+.workspace-shell .workspace-nav-icon, .workspace-shell .workspace-nav-card.is-active .workspace-nav-icon,
+.workspace-shell .person-card-avatar, .workspace-shell .person-card-patient .person-card-avatar,
+.workspace-shell .appointments-list-section .appointment-card::before {
+  box-shadow: 0 3px 10px rgb(15 23 42 / 4%);
+}
+:is(.workspace-shell, .day-popover) :is(.directory-record, .treatment-duration-card, .schedule-form, .directory-create)::before { display: none; }
+.workspace-shell .calendar-day:hover { transform: none; }
+.workspace-shell .workspace-date, .workspace-shell .workspace-location > summary { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: var(--crm-card-shadow); }
+.day-popover { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: 0 8px 28px rgb(15 23 42 / 10%); }
+.access > section { box-shadow: var(--crm-card-shadow); }
+@keyframes access-border-pulse { 50% { box-shadow: 0 7px 22px rgb(79 70 229 / 7%); } }
+
+.directory-layout.directory-patients { grid-template-columns: minmax(0, 1fr); }
+.directory-patients .directory-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); align-items: start; gap: 20px; }
+.directory-patients .directory-record { display: flex; flex-direction: column; align-items: center; min-width: 0; min-height: 285px; padding: 24px 20px 20px; gap: 16px; border-radius: 18px; text-align: center; }
+.patient-directory-avatar { display: grid; place-items: center; flex: 0 0 54px; width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(145deg, #eef2ff, #e5faf3); color: #4f46e5; font-size: 1rem; font-weight: 750; }
+.patient-directory-summary { flex: 1; justify-items: center; width: 100%; gap: 10px; }
+.patient-directory-summary h3 { margin: 0; font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.patient-directory-summary .patient-directory-age { padding: 4px 9px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-size: .72rem; font-weight: 650; }
+.patient-directory-contact, .patient-directory-location { display: grid; width: 100%; gap: 5px; color: #64748b; font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
+.patient-directory-location { margin: 0; padding-top: 12px; border-top: 1px solid #edf0f6; }
+.directory-patients .directory-record > .directory-edit-button { min-height: 44px; width: 100%; }
+.directory-patients .directory-edit-form { grid-template-columns: minmax(0, 1fr); width: 100%; padding: 14px; text-align: left; }
+.directory-patients .directory-edit-actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+.directory-patients .directory-edit-actions button { min-width: 0; width: 100%; }

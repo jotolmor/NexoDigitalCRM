@@ -76,19 +76,31 @@ async def main():
   await page.set_viewport_size({'width':390,'height':844})
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
   await form.screenshot(path='/tmp/nexocrm-patient-create-mobile.png')
-  # The same form remains available in the patient directory and refreshes booking options.
-  await nav.get_by_role('button',name='Pacientes',exact=True).click()
-  await expect(page.locator('.directory-list')).to_contain_text('Lucía Nueva')
+  # New patients are added in Citas; Pacientes is a full-width card directory.
   form=page.get_by_role('form',name='Nuevo paciente',exact=True)
   await form.get_by_label('Nombre',exact=True).fill('Mario')
   await form.get_by_label('Apellidos',exact=True).fill('Ejemplo')
   await form.get_by_label('Fecha de nacimiento',exact=True).fill('2000-11-05')
   await expect(form.get_by_label('Edad (años)',exact=True)).to_have_value('26')
   assert await form.get_by_label('Edad (años)',exact=True).get_attribute('readonly') is not None
-  await form.get_by_role('button',name='Guardar',exact=True).click()
-  await expect(page.locator('.directory-list')).to_contain_text('Mario Ejemplo')
+  await form.get_by_role('button',name='Guardar paciente',exact=True).click()
+  await expect(form.get_by_role('status')).to_have_text('Paciente guardado correctamente.')
   assert attempts[-1]=={'firstName':'Mario','lastName':'Ejemplo','dateOfBirth':'2000-11-05'}
   assert len(attempts)==3 and len(people)==3
+  await nav.get_by_role('button',name='Pacientes',exact=True).click()
+  await expect(page.get_by_role('form',name='Nuevo paciente',exact=True)).to_have_count(0)
+  await expect(page.locator('.directory-list')).to_contain_text('Lucía Nueva')
+  await expect(page.locator('.directory-list')).to_contain_text('Mario Ejemplo')
+  await expect(page.locator('.directory-record')).to_have_count(3)
+  await page.set_viewport_size({'width':1440,'height':1000})
+  await page.screenshot(path='/tmp/nexocrm-patients-flat-desktop.png',full_page=True)
+  card=page.locator('.directory-record').first
+  await card.hover()
+  assert await card.evaluate('e=>getComputedStyle(e).transform')=='none'
+  assert 'gradient' in await card.evaluate('e=>getComputedStyle(e).backgroundImage')
+  await page.set_viewport_size({'width':390,'height':844})
+  assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+  await page.screenshot(path='/tmp/nexocrm-patients-flat-mobile.png',full_page=True)
   row=page.locator('.directory-record').filter(has_text='Mario Ejemplo')
   await row.get_by_role('button',name='Editar',exact=True).click()
   edit=row.locator('.directory-edit-form')

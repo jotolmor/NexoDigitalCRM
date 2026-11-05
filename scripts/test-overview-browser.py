@@ -65,6 +65,8 @@ async def main():
   await expect(page.locator('.overview-roster .person-card-doctor')).to_have_count(2)
   await expect(page.locator('.overview-roster .person-card-patient')).to_have_count(2)
   await expect(page.locator('.overview-roster')).not_to_contain_text('Cancelado')
+  await page.locator('.person-card-doctor').first.hover()
+  assert await page.locator('.person-card-doctor').first.evaluate('e=>getComputedStyle(e).transform')=='none'
   await page.locator('.overview-roster').screenshot(path=str(ARTIFACTS/'person-cards-desktop.png'))
   doctor_details=page.locator('.person-card-doctor').filter(has_text='Doctora Clara').get_by_role('button')
   await doctor_details.click()
