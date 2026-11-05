@@ -260,6 +260,8 @@ model Professional {
   clinicId  String
   firstName String
   lastName  String
+  dni       String?
+  nif       String?
   specialty String
   email     String?
   phone     String?

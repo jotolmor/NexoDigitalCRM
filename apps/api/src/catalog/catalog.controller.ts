@@ -3,7 +3,7 @@ import { IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, M
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionUser } from '../common/access';
 import { CatalogService } from './catalog.service';
-class ProfessionalDto { @IsString() @MinLength(1) firstName!: string; @IsString() @MinLength(1) lastName!: string; @IsString() @MinLength(2) specialty!: string; @IsOptional() @IsEmail() email?: string; @IsOptional() @IsString() phone?: string; }
+class ProfessionalDto { @IsOptional() @IsString() @MinLength(3) @MaxLength(20) dni?: string | null; @IsOptional() @IsString() @MinLength(3) @MaxLength(20) nif?: string | null; @IsString() @MinLength(1) firstName!: string; @IsString() @MinLength(1) lastName!: string; @IsString() @MinLength(2) specialty!: string; @IsOptional() @IsEmail() email?: string; @IsOptional() @IsString() phone?: string; }
 class ServiceClassificationDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(120) profession?: string | null;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(120) specialty?: string | null;

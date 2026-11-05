@@ -55,6 +55,8 @@ async def main():
   form=page.get_by_role('form',name='Añadir profesional')
   await form.get_by_label('Nombre',exact=True).fill('Elena')
   await form.get_by_label('Apellidos',exact=True).fill('Nueva')
+  await form.get_by_label('DNI',exact=True).fill('12345678Z')
+  await form.get_by_label('NIF',exact=True).fill('B12345678')
   await expect(form.get_by_label('Especialidad',exact=True)).to_be_disabled()
   await form.get_by_label('Profesión',exact=True).select_option(label='Odontología')
   await expect(form.get_by_label('Especialidad',exact=True).locator('option',has_text='Endodoncia')).to_have_count(1)
@@ -67,6 +69,8 @@ async def main():
   assert max(fields)-min(fields)<2,fields
   await form.get_by_role('button',name='Guardar',exact=True).click()
   await expect(page.locator('.directory-list')).to_contain_text('Elena Nueva')
+  assert writes[0][2]['dni']=='12345678Z' and writes[0][2]['nif']=='B12345678'
+  await expect(page.locator('.directory-record',has_text='Elena Nueva')).to_contain_text('NIF: B12345678')
   await expect(form.get_by_label('Profesión',exact=True)).to_have_value('')
   row=page.locator('.directory-record',has_text='Clara Montoro')
   assert await row.evaluate('e=>getComputedStyle(e).flexDirection')=='column'
@@ -82,6 +86,8 @@ async def main():
   for _ in range(15):
    await page.keyboard.press('Tab')
    assert await dialog.evaluate('e=>e.contains(document.activeElement)')
+  await dialog.get_by_label('DNI',exact=True).fill('X1234567L')
+  await dialog.get_by_label('NIF',exact=True).fill('B87654321')
   await dialog.get_by_label('Especialidad',exact=True).select_option(label='Ortodoncia')
   await dialog.get_by_role('button',name='Guardar cambios',exact=True).click()
   await expect(dialog).to_contain_text('No se pudo actualizar el profesional.')
@@ -89,6 +95,8 @@ async def main():
   await dialog.get_by_role('button',name='Guardar cambios',exact=True).click()
   await expect(dialog).to_have_count(0)
   await expect(row).to_contain_text('Ortodoncia')
+  await expect(row).to_contain_text('DNI: X1234567L')
+  assert writes[-1][2]['nif']=='B87654321'
   await edit_button.click();await page.keyboard.press('Escape')
   await expect(dialog).to_have_count(0);await expect(edit_button).to_be_focused()
   await page.locator('.directory-record',has_text='Otro Profesional').get_by_role('button',name='Editar',exact=True).click()
