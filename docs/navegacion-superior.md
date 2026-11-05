@@ -151,3 +151,5 @@ El asistente incorpora `prepare_shift_swap` para intercambiar los turnos complet
 Referencia de plantillas aportada por el usuario: [Colorlib](https://colorlib.com/wp/templates/), para consultar como inspiración visual.
 
 Los campos de texto, áreas de texto y selectores comparten un borde negro de 1 px y sombra exterior oscura difuminada en acceso/registro, CRM y bocadillos. El foco mantiene el borde negro y añade un contorno índigo visible. Se excluyen casillas, radios y controles que no son campos de texto o selectores.
+
+El pie común aparece tanto en acceso/registro como en todas las vistas del CRM. Identifica la propiedad de nexodigitaldesign con enlace a `https://nexodigitaldesing.com/#inicio`, correo `jotolmor45@nexodigitaldesing.com` y teléfono `+34 630 289 699`, mediante enlaces web, mailto y tel. Se dispone en fila en escritorio y en columna en móvil, manteniéndose al final de la página sin tapar contenido.

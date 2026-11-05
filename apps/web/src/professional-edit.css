@@ -88,3 +88,17 @@
   outline: 3px solid rgb(79 70 229 / 22%);
   outline-offset: 2px;
 }
+
+
+/* Shared ownership and contact footer across access and CRM pages. */
+.crm-app-frame { display: flex; flex-direction: column; min-height: 100dvh; }
+.crm-app-frame > :is(.shell, .access) { flex: 1; min-height: 0; }
+.crm-site-footer { border-top: 1px solid #14b8a6; background: linear-gradient(110deg, #1e293b, #163c46); color: #e2e8f0; }
+.crm-footer-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 28px; max-width: 1440px; margin: 0 auto; padding: 20px clamp(18px, 4vw, 60px); font-size: .85rem; line-height: 1.6; }
+.crm-footer-content p { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.crm-footer-content a { display: inline-flex; align-items: center; min-height: 44px; min-width: 0; color: #f1f5f9; text-decoration: none; overflow-wrap: anywhere; }
+.crm-footer-content a:hover { color: #99f6e4; text-decoration: underline; text-underline-offset: 4px; }
+.crm-footer-content a:focus-visible { outline: 2px solid #5eead4; outline-offset: 4px; border-radius: 4px; }
+.crm-footer-brand { font-size: 1rem; letter-spacing: -.04em; }
+.crm-footer-brand strong { color: #5eead4; font-weight: 850; }
+@media (max-width: 640px) { .crm-footer-content { flex-direction: column; justify-content: center; gap: 4px; text-align: center; } }
