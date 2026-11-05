@@ -1,0 +1,55 @@
+/* Professional directory: horizontal creation, vertical records. */
+.directory-layout.directory-professionals { grid-template-columns: minmax(0, 1fr); }
+.directory-professionals > .directory-create { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.directory-professionals > .directory-create > :is(h2, .error, .success) { grid-column: 1 / -1; }
+.directory-professionals > .directory-create > button { grid-column: -2 / -1; min-height: 44px; }
+.directory-professionals .directory-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); align-items: stretch; gap: 20px; }
+.directory-professionals .directory-record { display: flex; flex-direction: column; align-items: center; gap: 18px; min-width: 0; padding: 24px 20px; text-align: center; }
+.directory-professionals .directory-record-summary { flex: 1; gap: 12px; }
+.directory-professionals .directory-record-summary span { line-height: 1.7; overflow-wrap: anywhere; }
+.directory-professionals .directory-edit-button { width: 100%; min-height: 44px; }
+
+/* A centered editing bubble, with a native modal's keyboard and focus behavior. */
+.workspace-edit-dialog { width: min(760px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 40px); margin: auto; padding: 0; overflow: auto; overscroll-behavior: contain; border: 1px solid transparent; border-radius: 22px; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; color: #0f172a; box-shadow: 0 24px 80px rgb(15 23 42 / 32%); }
+.workspace-edit-dialog::backdrop { background: rgb(15 23 42 / 48%); backdrop-filter: blur(5px); }
+.edit-dialog-heading { display: flex; flex-direction: row; justify-content: space-between; align-items: start; gap: 20px; padding: 24px 24px 18px; margin: 0; border-bottom: 1px solid #dce3ef; }
+.edit-dialog-heading h2 { margin: 5px 0 0; font-size: 1.35rem; }
+.edit-dialog-heading .eyebrow { margin: 0; }
+.edit-dialog-close { flex: 0 0 40px; width: 40px; min-height: 40px; padding: 0; font-size: 1.6rem; }
+.edit-dialog-body { padding: 24px; }
+.workspace-edit-dialog .edit-dialog-body > form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; position: static; margin: 0; padding: 0; border: 0; border-radius: 0; background: #fff; box-shadow: none; gap: 18px; }
+.workspace-edit-dialog form > :is(h2, .error, .success, .directory-edit-actions, .appointment-edit-actions, .treatment-edit-actions, .schedule-date-row, .schedule-period, .shift-choice, .shift-time-row) { grid-column: 1 / -1; }
+.workspace-edit-dialog form > h2 { display: none; }
+.workspace-edit-dialog label { display: grid; gap: 7px; min-width: 0; font-size: .82rem; font-weight: 650; color: #334155; }
+.workspace-edit-dialog :is(input, select, textarea) { min-width: 0; }
+.workspace-edit-dialog .directory-edit-actions, .workspace-edit-dialog .appointment-edit-actions, .workspace-edit-dialog .treatment-edit-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.workspace-edit-dialog .workspace-location-form { grid-template-columns: minmax(0, 1fr); }
+.workspace-edit-dialog .workspace-location-form > div { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Darker action colors, shared by authenticated and access pages. */
+:is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) :is(button.primary, button.secondary, a.secondary, .add-reservation, .person-card-details, .day-popover-close, .workspace-logout) { background: #334155; border-color: #334155; color: #fff; }
+:is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) button.primary { background: #3730a3; border-color: #3730a3; }
+:is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) :is(button.primary, button.secondary, a.secondary, .add-reservation, .person-card-details, .day-popover-close, .workspace-logout):hover:not(:disabled) { background: #1e293b; border-color: #1e293b; color: #fff; }
+:is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) button.primary:hover:not(:disabled) { background: #312e81; border-color: #312e81; }
+:is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) button:disabled { opacity: .5; cursor: not-allowed; }
+.workspace-shell .workspace-nav-card:not(.is-active) { background: linear-gradient(145deg, #d6deed, #c3d1e1) padding-box, var(--crm-card-border) border-box; color: #26334d; }
+:is(.workspace-shell, .workspace-edit-dialog, .access) button.link { color: #3730a3; }
+:is(.workspace-shell, .workspace-edit-dialog) .shift-choice button { background: #475569; border-color: #475569; color: #fff; }
+.workspace-shell .shift-choice button.selected, .workspace-edit-dialog .shift-choice button.selected { background: #3730a3; border-color: #3730a3; color: #fff; }
+@media (max-width: 900px) { .directory-professionals > .directory-create { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) {
+  .directory-professionals > .directory-create { grid-template-columns: minmax(0, 1fr); }
+  .workspace-edit-dialog .edit-dialog-body > form { grid-template-columns: minmax(0, 1fr); }
+  .edit-dialog-body, .edit-dialog-heading { padding: 18px; }
+  .workspace-edit-dialog :is(.directory-edit-actions, .appointment-edit-actions, .treatment-edit-actions) > button { flex: 1 1 100%; }
+}
+
+.workspace-edit-dialog:not([open]) { display: none; }
+.workspace-edit-dialog[open] { display: block; }
+
+.workspace-shell .calendar-day { color: #334155; }
+.workspace-shell .calendar-day.day-free { color: #115e59; background: #b7e9de; }
+.workspace-shell .calendar-day.day-partial { color: #312e81; background: #c7d2f1; }
+.workspace-shell .calendar-day.selected { color: #fff; background: #3730a3; }
+
+.workspace-edit-dialog .edit-dialog-body > form:focus-within { box-shadow: none; }

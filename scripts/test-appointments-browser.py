@@ -83,14 +83,14 @@ async def main():
   # The header editor supports existing clinics and updates route destinations.
   location=page.locator('.workspace-location')
   await location.locator('summary').click()
-  await location.get_by_label('Dirección del negocio',exact=True).fill('Error de prueba')
-  await location.get_by_role('button',name='Guardar dirección',exact=True).click()
-  await expect(location.get_by_role('alert')).to_have_text('No se pudo guardar la dirección.')
+  await page.get_by_role('dialog',name='Editar ubicación').get_by_label('Dirección del negocio',exact=True).fill('Error de prueba')
+  await page.get_by_role('dialog',name='Editar ubicación').get_by_role('button',name='Guardar dirección',exact=True).click()
+  await expect(page.get_by_role('dialog',name='Editar ubicación').get_by_role('alert')).to_have_text('No se pudo guardar la dirección.')
   await expect(page.locator('.workspace-location-value')).to_have_text('Calle de prueba, 1')
-  await location.get_by_label('Dirección del negocio',exact=True).fill('  Avenida Nueva, 22, Sevilla  ')
-  await location.get_by_role('button',name='Guardar dirección',exact=True).click()
+  await page.get_by_role('dialog',name='Editar ubicación').get_by_label('Dirección del negocio',exact=True).fill('  Avenida Nueva, 22, Sevilla  ')
+  await page.get_by_role('dialog',name='Editar ubicación').get_by_role('button',name='Guardar dirección',exact=True).click()
   await expect(page.locator('.workspace-location-value')).to_have_text('Avenida Nueva, 22, Sevilla')
-  await expect(location.locator('form')).not_to_be_visible()
+  await expect(page.get_by_role('dialog',name='Editar ubicación')).to_have_count(0)
   from urllib.parse import parse_qs as parse_query
   route_href=await page.get_by_role('link',name='Ruta a pie',exact=True).get_attribute('href')
   assert parse_query(urlparse(route_href).query)['destination']==['Avenida Nueva, 22, Sevilla']
@@ -99,9 +99,9 @@ async def main():
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
   await page.screenshot(path='/tmp/nexocrm-citas-unificada-mobile.png',full_page=True)
   await location.locator('summary').click()
-  bounds=await location.locator('form').bounding_box()
+  bounds=await page.get_by_role('dialog',name='Editar ubicación').bounding_box()
   assert bounds['x']>=0 and bounds['x']+bounds['width']<=391,bounds
-  await location.get_by_role('button',name='Cancelar',exact=True).click()
+  await page.get_by_role('dialog',name='Editar ubicación').get_by_role('button',name='Cancelar',exact=True).click()
   assert not errors,errors
   await browser.close()
   print('PASS: one Citas destination, calendar plus management, booking/reschedule refresh daily roster, date sync, header address editing/error handling, route updates, popover and mobile. Writes were mocked; no production data accessed.')

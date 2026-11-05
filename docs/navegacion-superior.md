@@ -68,3 +68,17 @@ Las pruebas cubren validación, guardado de los nuevos campos, código postal co
 `flat-cards.css` aplica el acabado común de borde degradado fino y sombra difuminada a las tarjetas, paneles y formularios del CRM, incluidos los bocadillos. El menú conserva su borde animado y estado activo; se eliminan sus aristas duras y su elevación. Las tarjetas de acceso conservan la animación del borde con una sombra suave. Las pruebas de navegador verifican que pacientes, menú, citas y personas del día no tengan transformación al pasar el cursor.
 
 El acabado común refuerza el degradado índigo/turquesa de los bordes y utiliza una sombra oscura difuminada en dos capas. El fondo del CRM combina tonos más oscuros de pizarra azulada, índigo y turquesa, con la cabecera diferenciada y superficies blancas para tarjetas y formularios. Los formularios de edición comparten este acabado, conservando su distribución adaptable.
+
+
+El directorio de Profesionales tiene el alta horizontal (cuatro columnas, dos y una según el ancho) y fichas verticales con iniciales, especialidad, contacto y edición. El selector Profesión filtra el combo Especialidad; al cambiar de profesión se limpia la especialidad anterior. El catálogo clínico agrupa odontología, medicina, enfermería, fisioterapia, psicología, nutrición, higiene y otras profesiones sanitarias. Otros sectores utilizan su catálogo de actividades. Se puede indicar otra especialidad y se conservan los valores personalizados existentes. Profesión guía la selección; el contrato existente sigue guardando `specialty`, sin columnas nuevas ni migración.
+
+`edit-popover.tsx` utiliza un diálogo nativo centrado para todas las ediciones: pacientes, profesionales, servicios, citas, tratamientos, seguimientos, turnos y ubicación. Conserva los formularios, validaciones y endpoints existentes; los errores permanecen dentro del diálogo. El fondo queda inactivo, el foco se mantiene dentro del bocadillo, Escape/cerrar/fondo permiten cancelar y el foco vuelve al elemento de apertura. En móvil el contenido puede desplazarse sin salir del viewport. La ubicación bloquea el cierre mientras guarda. `professional-edit.css` reúne el diseño del directorio, los diálogos y los tonos oscuros de botones, manteniendo los estados activos, desactivados y el foco visible.
+
+```bash
+python scripts/test-professional-edit-browser.py
+python scripts/test-patient-create-browser.py
+python scripts/test-appointments-browser.py
+python scripts/test-navigation-browser.py
+```
+
+Las pruebas con API simulada cubren las especialidades dependientes, alta y edición profesional, especialidades antiguas, error/reintento, todos los tipos de edición, teclado, cierre y móvil. No modifican datos reales.

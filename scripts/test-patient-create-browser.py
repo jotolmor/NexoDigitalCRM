@@ -103,7 +103,7 @@ async def main():
   await page.screenshot(path='/tmp/nexocrm-patients-flat-mobile.png',full_page=True)
   row=page.locator('.directory-record').filter(has_text='Mario Ejemplo')
   await row.get_by_role('button',name='Editar',exact=True).click()
-  edit=row.locator('.directory-edit-form')
+  edit=page.get_by_role('dialog').locator('.directory-edit-form')
   await expect(edit.get_by_label('Fecha de nacimiento',exact=True)).to_have_value('2000-11-05')
   await edit.get_by_label('Fecha de nacimiento',exact=True).fill('2001-12-06')
   await expect(edit.get_by_label('Edad (años)',exact=True)).to_have_value('24')

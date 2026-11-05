@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import './dashboard-navigation.css';
+import { EditPopover } from './edit-popover';
 
 export type WorkspaceView = 'Asistente' | 'Citas' | 'Pacientes' | 'Profesionales' | 'Servicios' | 'Tratamientos' | 'Seguimiento' | 'Horarios';
 
@@ -34,6 +35,7 @@ type Props = {
 
 export function DashboardNavigation({ items, active, date, isToday, address, onSaveAddress, onSelect, onLogout }: Props) {
   const location = useRef<HTMLDetailsElement>(null);
+  const [addressOpen, setAddressOpen] = useState(false);
   const [addressDraft, setAddressDraft] = useState(address);
   const [addressError, setAddressError] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
@@ -62,6 +64,7 @@ export function DashboardNavigation({ items, active, date, isToday, address, onS
           <div><span className="workspace-date-caption">{isToday ? 'Actividad de hoy' : 'Día seleccionado'}</span><time dateTime={date}>{dateLabel}</time></div>
           </div>
           <details className="workspace-location" ref={location} onToggle={event => {
+            setAddressOpen(event.currentTarget.open);
             if (event.currentTarget.open) { setAddressDraft(address); setAddressError(''); }
           }} onKeyDown={event => {
             if (event.key === 'Escape' && !savingAddress && location.current) { location.current.open = false; location.current.querySelector('summary')?.focus(); }
@@ -71,11 +74,11 @@ export function DashboardNavigation({ items, active, date, isToday, address, onS
               <span className="workspace-location-copy"><span className="workspace-date-caption">Ubicación</span><span className="workspace-location-value">{address || 'Añadir dirección'}</span></span>
               <span className="workspace-location-edit"><NavigationIcon name="Editar" /></span>
             </summary>
-            <form className="workspace-location-form" onSubmit={saveAddress} aria-busy={savingAddress}>
+            <EditPopover open={addressOpen} busy={savingAddress} title="Editar ubicación" onClose={() => { setAddressOpen(false); if (location.current) location.current.open = false; }}><form className="workspace-location-form" onSubmit={saveAddress} aria-busy={savingAddress}>
               <label>Dirección del negocio<input value={addressDraft} onChange={event => setAddressDraft(event.target.value)} autoComplete="street-address" placeholder="Calle, número, código postal y localidad" required maxLength={300} disabled={savingAddress} /></label>
               {addressError && <p className="error" role="alert">{addressError}</p>}
               <div><button type="button" className="secondary" disabled={savingAddress} onClick={() => { if (location.current) location.current.open = false; }}>Cancelar</button><button type="submit" className="primary" disabled={savingAddress}>{savingAddress ? 'Guardando…' : 'Guardar dirección'}</button></div>
-            </form>
+            </form></EditPopover>
           </details>
         </div>
         <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>

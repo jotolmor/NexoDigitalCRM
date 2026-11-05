@@ -16,14 +16,14 @@
   background: linear-gradient(120deg, #e3e8f4, #dce4f0 58%, #d4e8e6);
 }
 
-:is(.workspace-shell, .day-popover) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .directory-edit-form, .appointment-edit-form, .treatment-edit-form, .clinic-location-card, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro, .workspace-location-form) {
+:is(.workspace-shell, .day-popover, .workspace-edit-dialog) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .directory-edit-form, .appointment-edit-form, .treatment-edit-form, .clinic-location-card, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro, .workspace-location-form) {
   border: 1px solid transparent;
   background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box;
   box-shadow: var(--crm-card-shadow);
   transform: none;
   transition: border-color .18s ease, color .18s ease;
 }
-:is(.workspace-shell, .day-popover) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .directory-edit-form, .appointment-edit-form, .treatment-edit-form, .clinic-location-card, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro):is(:hover, :focus-within) {
+:is(.workspace-shell, .day-popover, .workspace-edit-dialog) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .directory-edit-form, .appointment-edit-form, .treatment-edit-form, .clinic-location-card, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro):is(:hover, :focus-within) {
   border-color: transparent;
   box-shadow: var(--crm-card-shadow);
   transform: none;
@@ -39,7 +39,7 @@
 .workspace-shell .appointments-list-section .appointment-card::before {
   box-shadow: 0 3px 10px rgb(15 23 42 / 4%);
 }
-:is(.workspace-shell, .day-popover) :is(.directory-record, .treatment-duration-card, .schedule-form, .directory-create)::before { display: none; }
+:is(.workspace-shell, .day-popover, .workspace-edit-dialog) :is(.directory-record, .treatment-duration-card, .schedule-form, .directory-create)::before { display: none; }
 .workspace-shell .calendar-day:hover { transform: none; }
 .workspace-shell .workspace-date, .workspace-shell .workspace-location > summary { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: var(--crm-card-shadow); }
 .day-popover { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: 0 16px 42px rgb(15 23 42 / 23%); }
