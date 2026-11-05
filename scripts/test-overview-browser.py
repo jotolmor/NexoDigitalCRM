@@ -35,7 +35,7 @@ async def main():
   await page.goto(os.environ.get('NEXO_TEST_URL','http://127.0.0.1:5173'))
   await page.evaluate('(s)=>localStorage.setItem("nexoclinic-session",JSON.stringify(s))',SESSION)
   await page.reload()
-  await page.locator('aside nav').get_by_role('button',name='Resumen',exact=True).click()
+  await page.get_by_role('navigation',name='Navegación principal').get_by_role('button',name='Resumen',exact=True).click()
   await expect(page.locator('.overview-metrics')).to_have_count(0)
   await expect(page.locator('main > header')).not_to_contain_text('Demo · Europe/Madrid')
   await expect(page.locator('main > header h1')).to_have_text('Clínica Demo')

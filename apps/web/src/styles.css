@@ -22,16 +22,7 @@ button { transition: background-color .16s ease, border-color .16s ease, color .
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgb(20 184 166 / 36%); outline-offset: 2px; }
 .brand { font-size: 1.5rem; font-weight: 850; letter-spacing: -.065em; }
 .brand span { color: var(--teal); }
-.shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
-aside { position: sticky; top: 0; height: 100vh; padding: 28px 18px 20px; background: var(--night); color: #cbd5e1; display: flex; flex-direction: column; gap: 38px; }
-aside .brand { color: var(--white); padding: 0 12px; }
-nav { display: grid; gap: 7px; }
-nav button { position: relative; padding: 12px 13px; border: 1px solid transparent; border-radius: 10px; color: #cbd5e1; background: transparent; text-align: left; cursor: pointer; }
-nav button:hover { color: var(--white); background: rgb(255 255 255 / 7%); }
-nav .active { color: var(--white); background: rgb(79 70 229 / 32%); border-color: rgb(129 140 248 / 30%); }
-nav .active::before { content: ""; position: absolute; left: -1px; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--teal); }
-.logout { margin-top: auto; padding: 12px; border: 0; border-radius: 9px; color: #cbd5e1; background: transparent; text-align: left; cursor: pointer; }
-.logout:hover { color: var(--white); background: rgb(255 255 255 / 7%); }
+.shell { min-height: 100vh; }
 .shell > main { width: 100%; max-width: 1440px; margin: 0 auto; padding: 42px clamp(24px, 4vw, 60px); }
 header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 32px; }
 h1 { margin: .2rem 0; color: var(--night); font-size: clamp(1.75rem, 3vw, 2.25rem); letter-spacing: -.045em; line-height: 1.15; }
@@ -116,13 +107,6 @@ li span, .empty { color: var(--muted); }
 .load-error p { color: var(--muted); line-height: 1.55; }
 .load-error .primary, .load-error .link { margin-top: 10px; }
 @media (max-width: 760px) {
-  .shell { grid-template-columns: minmax(0, 1fr); }
-  aside { position: static; height: auto; padding: 14px 16px 10px; gap: 12px; }
-  aside .brand { padding: 0 4px; }
-  nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
-  nav button { flex: 0 0 auto; padding: 9px 11px; font-size: .88rem; }
-  nav .active::before { display: none; }
-  .logout { position: absolute; top: 16px; right: 16px; margin: 0; padding: 7px 9px; font-size: .82rem; }
   .shell > main { padding: 26px 18px 36px; }
   header { align-items: flex-start; flex-direction: column; margin-bottom: 24px; }
   .metrics { grid-template-columns: 1fr; gap: 12px; }
@@ -134,9 +118,6 @@ li span, .empty { color: var(--muted); }
 .brand{display:block;width:100%;max-width:310px;line-height:0;letter-spacing:normal}
 .brand .crm-logo{display:block;width:100%;height:auto}
 .brand .crm-logo-dark{display:none}
-aside .brand{padding:0 2px;width:100%;max-width:220px;flex-shrink:0}
-aside .brand .crm-logo-light{display:none}
-aside .brand .crm-logo-dark{display:block}
 .access .brand{margin-bottom:26px}
 .load-error .brand{margin-bottom:24px}
 @media(max-width:600px){.access .brand{max-width:272px}}
