@@ -54,4 +54,16 @@ nexo_db_backup="$nexo_backup_root/antes-automatizaciones-n8n-$nexo_stamp.dump"
 test -s "$nexo_db_backup"
 "${nexo_compose[@]}" run --rm --no-deps api npx prisma migrate deploy --schema=/app/apps/api/prisma/schema.prisma
 "${nexo_compose[@]}" up -d --no-deps --force-recreate api
+nexo_api_ready=false
+for nexo_attempt in {1..30}; do
+  if "${nexo_compose[@]}" exec -T api node -e 'fetch("http://127.0.0.1:"+(process.env.PORT||process.env.API_PORT||3000)+"/api/health/ready",{signal:AbortSignal.timeout(2000)}).then(response=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))' >/dev/null 2>&1; then
+    nexo_api_ready=true
+    break
+  fi
+  sleep 2
+done
+if [[ "$nexo_api_ready" != true ]]; then
+  echo 'La API todavía no está preparada. Revisa los logs del servicio api antes de crear la conexión con n8n.' >&2
+  exit 1
+fi
 printf 'Actualización completada. Copia de base de datos: %s\n' "$nexo_db_backup"
