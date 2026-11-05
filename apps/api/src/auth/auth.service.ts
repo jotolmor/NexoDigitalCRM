@@ -7,14 +7,14 @@ import { PrismaService } from '../prisma.service';
 @Injectable()
 export class AuthService {
   constructor(private prisma: PrismaService, private jwt: JwtService) {}
-  async register(input: { clinicName: string; specialty: string; businessType?: string; name: string; email: string; password: string }) {
+  async register(input: { clinicName: string; specialty: string; businessType?: string; address?: string; name: string; email: string; password: string }) {
     const slug = input.clinicName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     if (await this.prisma.tenant.findUnique({ where: { slug } })) throw new ConflictException('Ya existe una clínica con ese nombre');
     const passwordHash = await bcrypt.hash(input.password, 12);
     const created = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const tenant = await tx.tenant.create({ data: { name: input.clinicName, slug } });
       const businessType = input.businessType ?? 'CLINIC';
-      const clinic = await tx.clinic.create({ data: { tenantId: tenant.id, name: input.clinicName, specialty: input.specialty, businessType, terminology: this.terminologyFor(businessType) } });
+      const clinic = await tx.clinic.create({ data: { tenantId: tenant.id, name: input.clinicName, specialty: input.specialty, businessType, address: input.address?.trim() || null, terminology: this.terminologyFor(businessType) } });
       const user = await tx.user.create({ data: { tenantId: tenant.id, clinicId: clinic.id, name: input.name, email: input.email.toLowerCase(), passwordHash, role: 'CLINIC_OWNER' } });
       return { tenant, clinic, user };
     });

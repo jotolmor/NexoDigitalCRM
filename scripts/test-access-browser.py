@@ -71,7 +71,7 @@ async def main():
   await page.locator('input[name=customSpecialty]').fill('Actividad anterior')
   await sector.select_option('CLINIC')
   await expect(page.locator('input[name=customSpecialty]')).to_have_count(0)
-  for name,value in {'clinicName':'Clínica Prueba','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro'}.items():
+  for name,value in {'clinicName':'Clínica Prueba','address':'  Calle Prueba, 35, Sevilla  ','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro'}.items():
    await page.locator(f'input[name={name}]').fill(value)
   # A missing activity must prevent submission even when the other fields are valid.
   await page.get_by_role('button',name='Crear cuenta',exact=True).click()
@@ -81,13 +81,13 @@ async def main():
   await expect(page.get_by_role('navigation',name='Navegación principal')).to_be_visible()
   await expect(page).to_have_url(base+'/')
   assert requests[-1][0].endswith('/auth/register')
-  assert requests[-1][1]=={'clinicName':'Clínica Prueba','specialty':'Odontología','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro','businessType':'CLINIC'}
+  assert requests[-1][1]=={'clinicName':'Clínica Prueba','address':'Calle Prueba, 35, Sevilla','specialty':'Odontología','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro','businessType':'CLINIC'}
   assert len(requests)==3
   await page.locator('button.logout').click()
   await page.get_by_role('link',name='Crear una cuenta').click()
   await page.locator('select[name=businessType]').select_option('PROFESSIONAL_SERVICES')
   await page.locator('select[name=specialty]').select_option('__other__')
-  for name,value in {'clinicName':'Nexo','name':'Usuario Prueba','email':'custom@example.invalid','password':'password-seguro','customSpecialty':'   '}.items():
+  for name,value in {'clinicName':'Nexo','address':'Calle Nueva, 12, Madrid','name':'Usuario Prueba','email':'custom@example.invalid','password':'password-seguro','customSpecialty':'   '}.items():
    await page.locator(f'input[name={name}]').fill(value)
   await page.get_by_role('button',name='Crear cuenta',exact=True).click()
   await expect(page.get_by_role('alert')).to_have_text('Indica tu especialidad o actividad.')
@@ -97,6 +97,7 @@ async def main():
   await expect(page.get_by_role('navigation',name='Navegación principal')).to_be_visible()
   assert requests[-1][1]['specialty']=='Automatización con IA'
   assert requests[-1][1]['businessType']=='PROFESSIONAL_SERVICES'
+  assert requests[-1][1]['address']=='Calle Nueva, 12, Madrid'
   assert 'customSpecialty' not in requests[-1][1]
   assert len(requests)==4 and not errors,(requests,errors)
   await browser.close()

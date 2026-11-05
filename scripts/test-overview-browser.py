@@ -39,7 +39,7 @@ async def main():
   await expect(page.locator('.overview-metrics')).to_have_count(0)
   await expect(page.locator('main h1')).to_have_text('Citas')
   await expect(page.get_by_role('navigation').get_by_role('button',name='Resumen',exact=True)).to_have_count(0)
-  await expect(page.locator('.appointments-management-section')).to_be_visible()
+  await expect(page.locator('.appointment-create-panel')).to_be_visible()
   await expect(page.locator('main .overview-date')).to_have_count(0)
   await expect(page.locator('.workspace-header time')).to_have_attribute('datetime', '2026-11-03')
   await expect(page.locator('.workspace-date')).to_contain_text('3 de noviembre de 2026')

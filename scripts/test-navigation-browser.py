@@ -18,7 +18,7 @@ async def main():
    req=route.request;path=urlparse(req.url).path;calls.append(path)
    headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization,Content-Type'}
    if req.method=='OPTIONS':await route.fulfill(status=204,headers=headers);return
-   if path=='/api/clinic/me': data={'name':'Clínica Demo Sevilla','timezone':'Europe/Madrid'}
+   if path=='/api/clinic/me': data={'name':'Clínica Demo Sevilla','timezone':'Europe/Madrid','address':'Calle Prueba, 35, Sevilla'}
    elif path=='/api/dashboard/calendar':data={'days':[]}
    elif path=='/api/dashboard/day':data={'date':parse_qs(urlparse(req.url).query)['date'][0],'timezone':'Europe/Madrid','appointments':[],'professionals':[]}
    elif path=='/api/assistant/ask':data={'answer':'Respuesta de prueba conservada','pendingAction':None}
@@ -34,6 +34,8 @@ async def main():
   await expect(page.locator('.workspace-header time')).to_have_attribute('datetime','2026-11-05')
   await expect(page.locator('.workspace-date')).to_contain_text('Jueves, 5 de noviembre de 2026')
   await expect(page.locator('.workspace-header')).not_to_contain_text('Clínica Demo')
+  await expect(page.locator('.workspace-location-value')).to_have_text('Calle Prueba, 35, Sevilla')
+  await expect(page.locator('.workspace-location-form')).not_to_be_visible()
   await expect(page.locator('aside')).to_have_count(0)
   await expect(nav.get_by_role('button')).to_have_count(8)
   await expect(nav.locator('[aria-current=page]')).to_have_text('Asistente')

@@ -63,10 +63,11 @@ export function RegisterPage({ onSession }: Props) {
     event.preventDefault();
     if (busy) return;
     const values = new FormData(event.currentTarget);
-    const fields = ['clinicName', 'businessType', 'specialty', 'name', 'email', 'password'];
+    const fields = ['clinicName', 'businessType', 'specialty', 'address', 'name', 'email', 'password'];
     const body = Object.fromEntries(fields.map(field => [field, field === 'password' ? String(values.get(field) ?? '') : String(values.get(field) ?? '').trim()]));
     body.specialty = specialty === '__other__' ? String(values.get('customSpecialty') ?? '').trim() : specialty;
     if (!body.specialty) { setMessage('Indica tu especialidad o actividad.'); return; }
+    if (!body.address) { setMessage('Indica la dirección del negocio.'); return; }
     setMessage(''); setBusy(true);
     try { onSession(await authenticate('register', body)); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.'); }
@@ -75,6 +76,7 @@ export function RegisterPage({ onSession }: Props) {
   return <AccessLayout title="Crear una cuenta" intro="Registra tu negocio y empieza a organizar tu agenda." footer={<>¿Ya tienes una cuenta? <a className="link" href="/login">Iniciar sesión</a></>}>
     <form onSubmit={submit} aria-busy={busy}>
       <label>Nombre del negocio<input name="clinicName" autoComplete="organization" required minLength={2} /></label>
+      <label>Dirección del negocio<input name="address" autoComplete="street-address" placeholder="Calle, número, código postal y localidad" required maxLength={300} /></label>
       <label>Sector<select name="businessType" value={sector} onChange={event => {
         setSector(event.target.value as RegistrationSector); setSpecialty(''); setMessage('');
       }}>{registrationSectors.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
