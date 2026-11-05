@@ -8,7 +8,7 @@ const fields = { professionalId: { type: 'string' }, weekday: { type: 'integer',
 const tools = [
   { type: 'function', function: { name: 'list_professionals', description: 'Consulta los profesionales reales de la clínica. Si hay homónimos, pide aclaración.', parameters: { type: 'object', properties: {}, additionalProperties: false } } },
   { type: 'function', function: { name: 'get_shifts', description: 'Consulta todos los turnos activos reales de un profesional.', parameters: { type: 'object', properties: { professionalId: { type: 'string' } }, required: ['professionalId'], additionalProperties: false } } },
-  { type: 'function', function: { name: 'prepare_shift_changes', description: 'Prepara de 1 a 20 cambios para revisar y confirmar. No guarda. Para update/remove usa el ruleId obtenido de get_shifts. Un cambio create/update necesita todos los campos de rule.', parameters: { type: 'object', properties: { changes: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: { kind: { type: 'string', enum: ['create', 'update', 'remove'] }, ruleId: { type: 'string' }, rule: { type: 'object', properties: fields, required: Object.keys(fields), additionalProperties: false } }, required: ['kind'], additionalProperties: false } } }, required: ['changes'], additionalProperties: false } } }
+  { type: 'function', function: { name: 'prepare_shift_changes', description: 'Comprueba de 1 a 20 cambios y prepara únicamente los que se pueden aplicar. Si ninguno está disponible, devuelve alternativas reales que requieren la elección del usuario. No guarda. Para update/remove usa el ruleId obtenido de get_shifts. Un cambio create/update necesita todos los campos de rule.', parameters: { type: 'object', properties: { changes: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: { kind: { type: 'string', enum: ['create', 'update', 'remove'] }, ruleId: { type: 'string' }, rule: { type: 'object', properties: fields, required: Object.keys(fields), additionalProperties: false } }, required: ['kind'], additionalProperties: false } } }, required: ['changes'], additionalProperties: false } } }
 ];
 type Proposal = { actor: string; expiresAt: number; changes: PreparedShift[] };
 @Injectable()
@@ -27,7 +27,7 @@ export class ShiftAssistantService {
     const timezone = clinic?.timezone ?? 'Europe/Madrid';
     const now = new Date();
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-    const messages: any[] = [{ role: 'system', content: `Eres Nexo IA, asistente de turnos de profesionales. Hoy es ${today}, instante ${now.toISOString()}, zona ${timezone}. Los minutos representan horas locales, nunca UTC. Profesional seleccionado: ${selectedProfessionalId || 'ninguno'}; confirma su nombre con herramientas. Responde en español. Usa herramientas para consultar profesionales y turnos, nunca inventes IDs ni asignaciones. Pregunta por datos ambiguos o ausentes, incluidas fechas de vigencia; no deduzcas un profesional homónimo. Solo prepara cambios cuando el usuario lo ordene. Las herramientas no guardan: el usuario debe pulsar Confirmar cambios. No afirmes que guardaste antes de la confirmación. No modifiques citas, pacientes ni datos externos. Respeta turnos de lunes a viernes: inicio por horas 09:00 a 13:00 o 16:00 a 20:00; final cada 15 minutos hasta 14:00 o 21:00; duración máxima 5 horas. Para jornadas con mañana y tarde prepara dos turnos por día. Revisa los turnos actuales antes de proponer modificaciones o retiradas.` },
+    const messages: any[] = [{ role: 'system', content: `Eres Nexo IA, asistente de turnos de profesionales. Hoy es ${today}, instante ${now.toISOString()}, zona ${timezone}. Los minutos representan horas locales, nunca UTC. Profesional seleccionado: ${selectedProfessionalId || 'ninguno'}; confirma su nombre con herramientas. Responde en español. Usa herramientas para consultar profesionales y turnos, nunca inventes IDs ni asignaciones. Pregunta por datos ambiguos o ausentes, incluidas fechas de vigencia; no deduzcas un profesional homónimo. Solo prepara cambios cuando el usuario lo ordene. Las herramientas no guardan: el usuario debe pulsar Confirmar cambios. No afirmes que guardaste antes de la confirmación. No modifiques citas, pacientes ni datos externos. Respeta turnos de lunes a viernes: inicio por horas 09:00 a 13:00 o 16:00 a 20:00; final cada 15 minutos hasta 14:00 o 21:00; duración máxima 5 horas. Para jornadas con mañana y tarde prepara dos turnos por día. Revisa los turnos actuales antes de proponer modificaciones o retiradas. Muestra únicamente profesionales y cambios disponibles; no listes cambios descartados ni mensajes técnicos de conflictos. Si hay alternativas, ofrece sólo las devueltas por las herramientas y espera a que el usuario elija antes de preparar otro horario.` },
       ...(Array.isArray(history) ? history : []).filter(item => item && ['user', 'assistant'].includes(item.role) && typeof item.content === 'string').slice(-24).map(item => ({ role: item.role, content: item.content.slice(0, 2000) })), { role: 'user', content: question }];
     let pendingAction: { proposalId: string; summaries: string[]; expiresAt: string } | null = null;
     for (let turn = 0; turn < 8; turn++) {
@@ -54,12 +54,18 @@ export class ShiftAssistantService {
           else if (call.function.name === 'prepare_shift_changes') {
             requireWriter(user);
             if (pendingAction) throw new ConflictException('Ya hay una propuesta pendiente.');
-            const changes = await this.scheduling.preview(user, args.changes);
+            const available = await this.scheduling.previewAvailable(user, args.changes);
+            const changes = available.changes;
+            if (!changes.length) {
+              const options = available.alternatives.map(option => option.summary.replace(/^(Asignar|Modificar): /, ''));
+              return { answer: options.length ? 'Puedes elegir entre estas opciones disponibles:\n' + options.map((option, index) => `${index + 1}. ${option}`).join('\n') + '\nDime cuál prefieres para preparar el cambio.' : 'No hay cambios disponibles con esos datos. Indícame otro horario o periodo para consultar las opciones disponibles.', pendingAction: null };
+            }
             for (const [id, proposal] of this.proposals) if (proposal.expiresAt <= Date.now()) this.proposals.delete(id);
             if (this.proposals.size >= 500) throw new ConflictException('Hay demasiadas propuestas pendientes. Inténtalo en unos minutos.');
             const proposalId = randomUUID(), expiresAt = Date.now() + 10 * 60 * 1000;
             this.proposals.set(proposalId, { actor: this.actor(user), expiresAt, changes });
             pendingAction = { proposalId, summaries: changes.map(change => change.summary), expiresAt: new Date(expiresAt).toISOString() };
+            if (available.omittedCount) return { answer: 'He preparado únicamente los cambios disponibles. Revisa la propuesta y confirma para guardarlos.', pendingAction };
             output = { prepared: true, summaries: pendingAction.summaries, requiresConfirmation: true };
           } else output = { error: 'Herramienta desconocida.' };
         } catch (error) { output = { error: error instanceof Error ? error.message : 'No se pudo consultar el turno.' }; }
@@ -75,7 +81,12 @@ export class ShiftAssistantService {
     if (proposal.actor !== this.actor(user)) throw new ForbiddenException('La propuesta pertenece a otro usuario o clínica.');
     // Consume before awaiting the transaction to prevent duplicate confirmations.
     this.proposals.delete(proposalId);
-    const rules = await this.scheduling.apply(user, proposal.changes, true);
+    let rules;
+    try { rules = await this.scheduling.apply(user, proposal.changes, true); }
+    catch (error) {
+      if (error instanceof ConflictException) throw new ConflictException('Los turnos disponibles han cambiado. Consulta de nuevo para ver las opciones que se pueden aplicar.');
+      throw error;
+    }
     return { message: `${rules.length} ${rules.length === 1 ? 'cambio de turno guardado' : 'cambios de turnos guardados'}. Las citas existentes se mantienen.`, rules };
   }
 }
