@@ -25,7 +25,7 @@ test('includes a doctor linked to an appointment without requiring an active-doc
   assert.equal(appointmentRoster([appointment('1', 'p1', 'inactive-doctor')]).doctors[0].professional.id, 'inactive-doctor');
 });
 test('empty day has no doctors, patients or appointments', () => {
-  assert.deepEqual(appointmentRoster([]), { doctors: [], patients: 0, total: 0 });
+  assert.deepEqual(appointmentRoster([]), { doctors: [], patientGroups: [], patients: 0, total: 0 });
 });
 test('sorts appointments chronologically without mutating server data', () => {
   const data = [appointment('later', 'p1', 'd1', 'SCHEDULED', '15'), appointment('earlier', 'p1', 'd1', 'CONFIRMED', '08')];
@@ -35,4 +35,15 @@ test('sorts appointments chronologically without mutating server data', () => {
 test('today uses the clinic timezone, including midnight in winter and summer', () => {
   assert.equal(clinicDateKey(new Date('2026-11-03T23:30:00Z'), 'Europe/Madrid'), '2026-11-04');
   assert.equal(clinicDateKey(new Date('2026-07-03T22:30:00Z'), 'Europe/Madrid'), '2026-07-04');
+});
+
+test('groups one patient across professionals and keeps their appointments chronological', () => {
+  const result = appointmentRoster([appointment('later', 'p1', 'd2', 'CONFIRMED', '15'), appointment('earlier', 'p1', 'd1', 'CONFIRMED', '08'), appointment('other', 'p2', 'd1', 'CONFIRMED', '09')]);
+  assert.equal(result.patientGroups.length, 2);
+  assert.equal(result.patientGroups[0].patient.id, 'p1');
+  assert.deepEqual(result.patientGroups[0].appointments.map(item => item.id), ['earlier', 'later']);
+});
+test('keeps patients with identical display names separate by id and excludes cancellations', () => {
+  const result = appointmentRoster([appointment('1', 'p1', 'd1'), appointment('2', 'p2', 'd1'), appointment('3', 'p3', 'd2', 'CANCELLED')]);
+  assert.deepEqual(result.patientGroups.map(item => item.patient.id), ['p1', 'p2']);
 });

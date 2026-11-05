@@ -31,3 +31,15 @@ Además de las pruebas de navegador se verifica la validación del DTO y el env�
 ```bash
 npm run test -w @nexoclinic/api -- --runTestsByPath test/auth-address.spec.ts
 ```
+
+La sección Doctores y pacientes del día usa tarjetas horizontales a todo el ancho, con borde degradado fino, relieve, iniciales, nombre, contexto, número de citas y el primer horario del día. Cada persona aparece una sola vez por su ID, incluso si tiene varias citas o comparte nombre con otra. Los pacientes se agrupan también cuando tienen citas con varios profesionales. Se conservan únicamente las citas no canceladas.
+
+El botón «Detalles de citas» abre un bocadillo anclado a la tarjeta, filtrado por profesional o paciente y por el día ya consultado. El calendario mantiene su bocadillo general, sin abrir modales anidados. Los detalles muestran tratamientos, horarios en la zona de la clínica, estados y personas relacionadas, usando los datos de la consulta diaria existente. Escape, botón de cierre y fondo devuelven el foco al botón que abrió el bocadillo; la posición y el contenido desplazable se adaptan al viewport. Los efectos de elevación se desactivan con reducción de movimiento.
+
+La agrupación de pacientes y la separación por ID se verifican con:
+
+```bash
+node --test apps/web/test/overview-data.test.mjs
+```
+
+La prueba de navegador del calendario cubre también detalles de cada tipo de tarjeta, filtrado por persona, cancelaciones, teclado y límites del bocadillo en móvil.

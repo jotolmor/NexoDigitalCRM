@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { appointmentRoster, DayAppointment } from './overview-data';
+import { AppointmentPersonCards, type PersonSubject } from './appointment-person-cards';
 import './appointment-overview.css';
 
 type Props = {
@@ -34,6 +35,7 @@ function Roster({ appointments, timezone }: { appointments: DayAppointment[]; ti
 export function AppointmentOverview({ session, timezone, load, selectedDate, onSelectDate }: Props) {
   const [month, setMonth] = useState(() => { const [year, month] = selectedDate.split('-').map(Number); return new Date(year, Math.floor((month - 1) / 3) * 3, 1); });
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const [popover, setPopover] = useState<PersonSubject | { kind: 'day' }>({ kind: 'day' });
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const [position, setPosition] = useState({ left: 16, top: 16, above: false, pointer: 28 });
@@ -48,6 +50,14 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
   const byDate = new Map((calendar.data?.days ?? []).map(item => [item.date, item]));
   const labels = { closed: 'Sin horario', free: 'Libre', partial: 'Ocupación parcial', full: 'Completo' };
   const close = () => { dialog.current?.close(); setAnchor(null); if (opener.current?.isConnected) opener.current.focus(); };
+  const detailAppointments = popover.kind === 'day' ? appointments : appointments.filter(item => popover.kind === 'doctor' ? item.professional.id === popover.id : item.patient.id === popover.id);
+  const detailRoster = appointmentRoster(detailAppointments);
+  const person = popover.kind === 'doctor' ? detailAppointments[0]?.professional : popover.kind === 'patient' ? detailAppointments[0]?.patient : null;
+  const personName = person ? `${person.firstName} ${person.lastName}`.trim() : 'esta persona';
+  const detailTitle = popover.kind === 'day' ? selectedLabel : `Citas de ${personName}`;
+  const detailSummary = popover.kind === 'day'
+    ? `${roster.doctors.length} doctores · ${roster.patients} pacientes · ${roster.total} citas`
+    : `${detailRoster.total} ${detailRoster.total === 1 ? 'cita' : 'citas'} · ${popover.kind === 'doctor' ? `${detailRoster.patients} ${detailRoster.patients === 1 ? 'paciente' : 'pacientes'}` : `${detailRoster.doctors.length} ${detailRoster.doctors.length === 1 ? 'profesional' : 'profesionales'}`}`;
 
   useLayoutEffect(() => {
     if (!anchor || !dialog.current) return;
@@ -69,13 +79,17 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
     observer.observe(element);
     window.addEventListener('resize', place);
     return () => { observer.disconnect(); window.removeEventListener('resize', place); document.body.style.overflow = previousOverflow; };
-  }, [anchor, day.data, day.isError]);
+  }, [anchor, day.data, day.isError, popover]);
 
-  const dayContent = day.isLoading
+  const dayStatus = day.isLoading
     ? <p role="status">Cargando citas…</p>
     : day.isError
       ? <div role="alert"><p>No se pudieron cargar las citas de este día.</p><button type="button" className="secondary" onClick={() => void day.refetch()}>Reintentar</button></div>
-      : <Roster appointments={appointments} timezone={localTimezone} />;
+      : null;
+  const dayContent = dayStatus ?? <AppointmentPersonCards roster={roster} timezone={localTimezone} onDetails={(event, subject) => {
+    opener.current = event.currentTarget; setPopover(subject); setAnchor(event.currentTarget.getBoundingClientRect());
+  }} />;
+  const detailContent = dayStatus ?? <Roster appointments={detailAppointments} timezone={localTimezone} />;
 
   function monthView(value: number) {
     const first = new Date(year, value, 1);
@@ -89,7 +103,7 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
         const status = byDate.get(date)?.status ?? 'closed';
         return <button type="button" key={date} className={`calendar-day day-${status}${selectedDate === date ? ' selected' : ''}`}
           aria-label={`${date}: ${labels[status]}. Ver citas`} aria-haspopup="dialog" aria-pressed={selectedDate === date}
-          onClick={event => { opener.current = event.currentTarget; onSelectDate(date); setAnchor(event.currentTarget.getBoundingClientRect()); }}>{index + 1}</button>;
+          onClick={event => { opener.current = event.currentTarget; setPopover({ kind: 'day' }); onSelectDate(date); setAnchor(event.currentTarget.getBoundingClientRect()); }}>{index + 1}</button>;
       })}
     </div></section>;
   }
@@ -101,7 +115,7 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
     <section className="panel overview-roster" aria-label="Doctores y pacientes con citas"><div className="overview-roster-heading"><div><p className="eyebrow">Doctores y pacientes</p><h2>Citas del día</h2></div><span>Horario {localTimezone}</span></div>{dayContent}</section>
     {anchor && createPortal(<dialog ref={dialog} className={`day-popover${position.above ? " above" : ""}`} aria-labelledby="day-popover-title" style={{ left: position.left, top: position.top }} onCancel={close}
       onClick={event => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close(); } }}>
-      <span className="day-popover-pointer" aria-hidden="true" style={{ left: position.pointer }} /><div className="day-popover-scroll"><div className="day-popover-heading"><div><p className="eyebrow">Agenda del día</p><h2 id="day-popover-title">{selectedLabel}</h2><p>{day.isLoading ? 'Cargando…' : day.isError ? 'Consulta no disponible' : `${roster.doctors.length} doctores · ${roster.patients} pacientes · ${roster.total} citas`}</p><small>Horario {localTimezone}</small></div><button type="button" className="secondary" aria-label="Cerrar citas del día" autoFocus onClick={close}>×</button></div>{dayContent}</div>
+      <span className="day-popover-pointer" aria-hidden="true" style={{ left: position.pointer }} /><div className="day-popover-scroll"><div className="day-popover-heading"><div><p className="eyebrow">{popover.kind === 'day' ? 'Agenda del día' : popover.kind === 'doctor' ? 'Agenda del profesional' : 'Agenda del paciente'}</p><h2 id="day-popover-title">{detailTitle}</h2>{popover.kind !== 'day' && <p>{selectedLabel}</p>}<p>{day.isLoading ? 'Cargando…' : day.isError ? 'Consulta no disponible' : detailSummary}</p><small>Horario {localTimezone}</small></div><button type="button" className="secondary" aria-label={popover.kind === 'day' ? 'Cerrar citas del día' : 'Cerrar detalles de citas'} autoFocus onClick={close}>×</button></div>{detailContent}</div>
     </dialog>, document.body)}
   </div>;
 }

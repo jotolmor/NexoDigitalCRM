@@ -18,11 +18,16 @@ export function clinicDateKey(now: Date, timezone: string): string {
 
 export function appointmentRoster(appointments: DayAppointment[]) {
   const byDoctor = new Map<string, { professional: DayAppointment['professional']; appointments: DayAppointment[] }>();
-  const patients = new Set<string>();
+  const patients = new Map<string, { patient: DayAppointment['patient']; appointments: DayAppointment[] }>();
   const visible = appointments.filter(item => item.status !== 'CANCELLED')
     .slice().sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
   for (const item of visible) {
-    patients.add(item.patient.id);
+    let patientGroup = patients.get(item.patient.id);
+    if (!patientGroup) {
+      patientGroup = { patient: item.patient, appointments: [] };
+      patients.set(item.patient.id, patientGroup);
+    }
+    patientGroup.appointments.push(item);
     let group = byDoctor.get(item.professional.id);
     if (!group) {
       group = { professional: item.professional, appointments: [] };
@@ -30,5 +35,5 @@ export function appointmentRoster(appointments: DayAppointment[]) {
     }
     group.appointments.push(item);
   }
-  return { doctors: [...byDoctor.values()], patients: patients.size, total: visible.length };
+  return { doctors: [...byDoctor.values()], patientGroups: [...patients.values()], patients: patients.size, total: visible.length };
 }
