@@ -1,5 +1,5 @@
 export const registrationSectors = [
-  { value: 'CLINIC', label: 'Clínica o salud' },
+  { value: 'CLINIC', label: 'Clínicas' },
   { value: 'BEAUTY', label: 'Belleza y bienestar' },
   { value: 'FITNESS', label: 'Fitness y deporte' },
   { value: 'EDUCATION', label: 'Educación' },
