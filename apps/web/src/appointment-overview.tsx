@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { appointmentRoster, DayAppointment } from './overview-data';
 import { AppointmentPersonCards, type PersonSubject } from './appointment-person-cards';
 import './appointment-overview.css';
+import { AppointmentSearch } from './appointment-search';
 
 type Props = {
   session: { user: { id: string; tenantId: string; clinicId?: string | null } };
@@ -34,6 +35,10 @@ function Roster({ appointments, timezone }: { appointments: DayAppointment[]; ti
 
 export function AppointmentOverview({ session, timezone, load, selectedDate, onSelectDate }: Props) {
   const [month, setMonth] = useState(() => { const [year, month] = selectedDate.split('-').map(Number); return new Date(year, Math.floor((month - 1) / 3) * 3, 1); });
+  useEffect(() => {
+    const [year, month] = selectedDate.split('-').map(Number);
+    setMonth(new Date(year, Math.floor((month - 1) / 3) * 3, 1));
+  }, [selectedDate]);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const [popover, setPopover] = useState<PersonSubject | { kind: 'day' }>({ kind: 'day' });
   const dialog = useRef<HTMLDialogElement>(null);
@@ -109,6 +114,7 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
   }
 
   return <div className="appointment-overview">
+    <AppointmentSearch scope={scope} timezone={timezone} load={load} onSelectDate={onSelectDate} />
     <section className="calendar-panel"><div className="calendar-heading"><div><p className="eyebrow">Calendario de citas</p><h2>Agenda · {year}</h2><p>Pulsa un día para ver sus doctores y pacientes.</p></div><div className="calendar-controls"><button type="button" className="secondary" aria-label="Trimestre anterior" onClick={() => setMonth(new Date(year, month.getMonth() - 3, 1))}>‹</button><span>{Math.floor(month.getMonth() / 3) + 1} / 4</span><button type="button" className="secondary" aria-label="Trimestre siguiente" onClick={() => setMonth(new Date(year, month.getMonth() + 3, 1))}>›</button></div></div>
       {calendar.isLoading ? <p role="status">Cargando calendario…</p> : calendar.isError ? <p className="error" role="alert">No se pudo cargar el calendario.</p> : <><div className="calendar-months">{[0, 1, 2].map(index => monthView(month.getMonth() + index))}</div><div className="calendar-legend"><span><i className="day-free" />Libre</span><span><i className="day-partial" />Ocupación parcial</span><span><i className="day-full" />Completo</span><span><i className="day-closed" />Sin horario</span></div></>}
     </section>
