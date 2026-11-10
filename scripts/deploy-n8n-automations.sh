@@ -22,6 +22,7 @@ nexo_files=(
   apps/api/prisma/migrations/20261105190000_professional_identifiers/migration.sql
   apps/api/prisma/migrations/20261106100000_n8n_automations/migration.sql
   apps/api/prisma/migrations/20261110120000_reminder_schedule/migration.sql
+  apps/api/prisma/migrations/20261110130000_four_reminder_stages/migration.sql
   apps/api/src/app.module.ts
   apps/api/src/appointments/appointments.service.ts
   apps/api/src/automations/automations.module.ts

@@ -8,7 +8,7 @@ n8n consulta al CRM cada minuto mediante HTTPS con una clave propia por clínica
 
 Los eventos de alta, cambio de fecha y cambio de estado de una cita se escriben junto con la cita en una transacción. Los cambios de fecha y los estados que invalidan avisos incrementan su versión. Confirmar una reserva existente no repite su recordatorio. Los trabajos validan la versión, teléfono, estado y fecha actuales antes de enviarse. Se preparan confirmaciones, recordatorios, cambios y cancelaciones; no se envían avisos operativos de citas pasadas o completadas.
 
-Los recordatorios se generan en tres etapas: 72 horas, 24 horas y 1 hora antes de cada cita. `reminderOffsetsMinutes` permite configurar las etapas (minutos, entre 60 y 4320). Cada etapa se deduplica por cita, versión, canal, modo y teléfono. El sondeo cada minuto permite hasta un minuto de demora en el último aviso; después se descarta. Una cita cancelada, reprogramada o con teléfono modificado invalida el trabajo antiguo. Si el sistema se conecta tarde, se ofrece solo la etapa vigente, nunca varios avisos atrasados juntos. Al conectar por primera vez, los eventos históricos anteriores a la conexión no se reproducen; sí se revisan los próximos recordatorios. En una primera conexión dentro de esa ventana puede generarse un recordatorio inmediatamente. Prueba primero el volumen en DRY_RUN.
+Los recordatorios se generan en cuatro etapas: 72 horas, 48 horas, 24 horas y 1 hora antes de cada cita. `reminderOffsetsMinutes` permite configurar las etapas (minutos, entre 60 y 4320). Cada etapa se deduplica por cita, versión, canal, modo y teléfono. El sondeo cada minuto permite hasta un minuto de demora en el último aviso; después se descarta. Una cita cancelada, reprogramada o con teléfono modificado invalida el trabajo antiguo. Si el sistema se conecta tarde, se ofrece solo la etapa vigente, nunca varios avisos atrasados juntos. Al conectar por primera vez, los eventos históricos anteriores a la conexión no se reproducen; sí se revisan los próximos recordatorios. En una primera conexión dentro de esa ventana puede generarse un recordatorio inmediatamente. Prueba primero el volumen en DRY_RUN.
 
 Los canales se eligen por clínica: `WHATSAPP`, `SMS`, `CALL`. Cada canal seleccionado recibe su propio trabajo. El valor inicial es sólo WhatsApp; el script permite simular los tres antes de decidir qué canales activar realmente. No hay sustitución automática entre canales ni reintentos de envío externos.
 
@@ -72,7 +72,7 @@ Propietario con JWT:
 
 - POST `/api/automations/n8n/connection`: crear clave, una vez.
 - GET `/api/automations/n8n/connection`: configuración y recuentos, sin secretos.
-- PATCH `/api/automations/n8n/connection`: enabled, mode, channels y reminderOffsetsMinutes (por defecto `[4320,1440,60]`). `reminderMinutes` se conserva como ajuste heredado, pero las conexiones actuales usan las etapas.
+- PATCH `/api/automations/n8n/connection`: enabled, mode, channels y reminderOffsetsMinutes (por defecto `[4320,2880,1440,60]`). `reminderMinutes` se conserva como ajuste heredado, pero las conexiones actuales usan las etapas.
 - POST `/api/automations/n8n/rotate-key`: sustituir la clave.
 
 n8n con clave dedicada:

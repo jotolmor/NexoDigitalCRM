@@ -21,11 +21,24 @@ function setup(){
 }
 beforeEach(()=>jest.useFakeTimers().setSystemTime(new Date('2026-11-06T12:00:00Z')));afterEach(()=>jest.useRealTimers());
 describe('n8n scoped delivery jobs',()=>{
+ it('expires the old 72-hour stage when the new 48-hour stage is added',async()=>{
+  const {service,appointment,events}=setup();events.length=0;
+  appointment.startsAt=new Date(Date.now()+2881*60000);
+  const oldConnection={...connection,reminderOffsetsMinutes:[4320,1440,60]};
+  const job=(await service.claim(oldConnection,1)).jobs[0];
+  expect(job.reminderStageMinutes).toBe(4320);
+  jest.advanceTimersByTime(60000);
+  const fourStages={...connection,reminderOffsetsMinutes:[4320,2880,1440,60]};
+  await expect(service.validate(fourStages,job.id,job.deliveryToken)).resolves.toEqual({allowed:false,mode:'DRY_RUN'});
+  const next=(await service.claim(fourStages,20)).jobs;
+  expect(next).toHaveLength(3);
+  expect(next.every(item=>item.reminderStageMinutes===2880)).toBe(true);
+ });
  it('sends each reminder stage once per channel, stops before the appointment and keeps all patients eligible',async()=>{
   const {service,appointment,events,jobs}=setup();events.length=0;
-  const staged={...connection,reminderOffsetsMinutes:[4320,1440,60]};
+  const staged={...connection,reminderOffsetsMinutes:[4320,2880,1440,60]};
   appointment.startsAt=new Date(Date.now()+4320*60000);
-  for(const minutes of [4320,1440,60]){
+  for(const minutes of [4320,2880,1440,60]){
    jest.setSystemTime(new Date(appointment.startsAt.getTime()-minutes*60000));
    const claimed=(await service.claim(staged,20)).jobs;
    expect(claimed).toHaveLength(3);
@@ -33,7 +46,7 @@ describe('n8n scoped delivery jobs',()=>{
    for(const job of claimed) await service.result(staged,job.id,{deliveryToken:job.deliveryToken,status:'SIMULATED'});
    expect((await service.claim(staged,20)).jobs).toEqual([]);
   }
-  expect(jobs).toHaveLength(9);
+  expect(jobs).toHaveLength(12);
   expect(jobs.every(job=>job.recipient==='+34600111222')).toBe(true);
   jest.setSystemTime(new Date(appointment.startsAt.getTime()-59*60000));
   expect((await service.claim(staged,20)).jobs).toEqual([]);

@@ -85,7 +85,7 @@ export class AutomationsService {
       const payload = job.payload as any;
       if (job.eventType === 'appointment.reminder' && connection.reminderOffsetsMinutes
           && (!payload.reminderExpiresAt || new Date(payload.reminderExpiresAt) <= new Date()
-              || !connection.reminderOffsetsMinutes.includes(payload.reminderStageMinutes))) {
+              || reminderStage(new Date(payload.startsAt), new Date(), connection.reminderOffsetsMinutes)?.minutes !== payload.reminderStageMinutes)) {
         await this.prisma.notification.updateMany({ where: { ...scope, id: job.id, status: 'PENDING' }, data: { status: 'CANCELLED', lastError: 'reminder_window_expired' } });
         continue;
       }
@@ -106,7 +106,7 @@ export class AutomationsService {
     const appointment = await this.prisma.appointment.findFirst({ where: { id: job.appointmentId, tenantId: connection.tenantId, clinicId: connection.clinicId }, include });
     const validStatus = appointment && (job.eventType === 'appointment.cancelled' ? appointment.status === 'CANCELLED' : ['SCHEDULED', 'CONFIRMED'].includes(appointment.status));
     const inReminderWindow = job.eventType !== 'appointment.reminder' || !connection.reminderOffsetsMinutes
-      || Boolean(payload.reminderExpiresAt && new Date(payload.reminderExpiresAt) > new Date() && connection.reminderOffsetsMinutes.includes(payload.reminderStageMinutes));
+      || Boolean(payload.reminderExpiresAt && new Date(payload.reminderExpiresAt) > new Date() && reminderStage(new Date(payload.startsAt), new Date(), connection.reminderOffsetsMinutes)?.minutes === payload.reminderStageMinutes);
     const allowed = Boolean(inReminderWindow && job.scheduledAt <= new Date() && connection.channels.includes(job.channel) && validStatus && appointment.startsAt > new Date() && appointment.startsAt.toISOString() === payload.startsAt && appointment.notificationVersion === payload.version && contactPhone(appointment.patient.phone) === job.recipient && (payload.mode === 'DRY_RUN' || connection.mode === 'LIVE'));
     if (!allowed) await this.prisma.notification.updateMany({ where: { id: job.id, tenantId: connection.tenantId, clinicId: connection.clinicId, status: 'PROCESSING' }, data: { status: 'CANCELLED', lastError: 'appointment_changed_or_paused' } });
     return { allowed, mode: payload.mode };

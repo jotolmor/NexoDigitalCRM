@@ -428,7 +428,7 @@ model AutomationConnection {
   mode String @default("DRY_RUN")
   channels String[] @default(["WHATSAPP"])
   reminderMinutes Int @default(1440)
-  reminderOffsetsMinutes Int[] @default([4320, 1440, 60])
+  reminderOffsetsMinutes Int[] @default([4320, 2880, 1440, 60])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
