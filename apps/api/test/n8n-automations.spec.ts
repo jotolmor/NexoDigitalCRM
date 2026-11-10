@@ -21,6 +21,54 @@ function setup(){
 }
 beforeEach(()=>jest.useFakeTimers().setSystemTime(new Date('2026-11-06T12:00:00Z')));afterEach(()=>jest.useRealTimers());
 describe('n8n scoped delivery jobs',()=>{
+ it('sends each reminder stage once per channel, stops before the appointment and keeps all patients eligible',async()=>{
+  const {service,appointment,events,jobs}=setup();events.length=0;
+  const staged={...connection,reminderOffsetsMinutes:[4320,1440,60]};
+  appointment.startsAt=new Date(Date.now()+4320*60000);
+  for(const minutes of [4320,1440,60]){
+   jest.setSystemTime(new Date(appointment.startsAt.getTime()-minutes*60000));
+   const claimed=(await service.claim(staged,20)).jobs;
+   expect(claimed).toHaveLength(3);
+   expect(claimed.every(job=>job.reminderStageMinutes===minutes)).toBe(true);
+   for(const job of claimed) await service.result(staged,job.id,{deliveryToken:job.deliveryToken,status:'SIMULATED'});
+   expect((await service.claim(staged,20)).jobs).toEqual([]);
+  }
+  expect(jobs).toHaveLength(9);
+  expect(jobs.every(job=>job.recipient==='+34600111222')).toBe(true);
+  jest.setSystemTime(new Date(appointment.startsAt.getTime()-59*60000));
+  expect((await service.claim(staged,20)).jobs).toEqual([]);
+ });
+ it('expires reminders held across a stage boundary and rejects old unscheduled reminder jobs',async()=>{
+  const {service,appointment,events}=setup();events.length=0;
+  const staged={...connection,reminderOffsetsMinutes:[4320,1440,60]};
+  appointment.startsAt=new Date(Date.now()+1441*60000);
+  const old=(await service.claim(staged,1)).jobs[0];
+  expect(old.reminderStageMinutes).toBe(4320);
+  jest.advanceTimersByTime(60000);
+  await expect(service.validate(staged,old.id,old.deliveryToken)).resolves.toEqual({allowed:false,mode:'DRY_RUN'});
+  const next=(await service.claim(staged,20)).jobs;
+  expect(next).toHaveLength(3);expect(next.every(job=>job.reminderStageMinutes===1440)).toBe(true);
+ });
+ it('includes different patient numbers and cancels legacy or expired pending reminders before delivery',async()=>{
+  const {service,appointment,events,prisma,jobs}=setup();events.length=0;
+  const staged={...connection,reminderOffsetsMinutes:[4320,1440,60]};
+  prisma.appointment.findMany.mockResolvedValue([appointment,{...appointment,id:'other-appointment',patientId:'other-patient',patient:{firstName:'Álex',phone:'+34630123456'}}]);
+  jobs.push({id:'legacy',tenantId:'tenant',clinicId:'clinic',channel:'WHATSAPP',eventType:'appointment.reminder',status:'PENDING',payload:{mode:'DRY_RUN'},scheduledAt:new Date(),createdAt:new Date()});
+  const claimed=(await service.claim(staged,20)).jobs;
+  expect(claimed).toHaveLength(6);
+  expect(new Set(claimed.map(job=>job.recipient))).toEqual(new Set(['+34600111222','+34630123456']));
+  expect(jobs.find(job=>job.id==='legacy').status).toBe('CANCELLED');
+ });
+ it('invalidates a staged reminder after rescheduling and does not repeat a stage on confirmation',async()=>{
+  const {service,appointment,events}=setup();events.length=0;
+  const staged={...connection,reminderOffsetsMinutes:[4320,1440,60]};
+  const claimed=(await service.claim(staged,20)).jobs;
+  appointment.status='CONFIRMED';
+  expect((await service.claim(staged,20)).jobs).toEqual([]);
+  appointment.notificationVersion++;appointment.startsAt=new Date(appointment.startsAt.getTime()+3600000);
+  for(const job of claimed) await expect(service.validate(staged,job.id,job.deliveryToken)).resolves.toEqual({allowed:false,mode:'DRY_RUN'});
+  expect((await service.claim(staged,20)).jobs).toHaveLength(3);
+ });
  it('issues only a hashed, per-clinic integration credential in dry run',async()=>{
   const {service,prisma}=setup();const result=await service.connect(user);expect(result.apiKey).toMatch(/^nexo_n8n_[a-f0-9]{64}$/);expect(result.mode).toBe('DRY_RUN');
   expect(prisma.automationConnection.create).toHaveBeenCalledWith({data:{tenantId:'tenant',clinicId:'clinic',tokenHash:sha(result.apiKey),mode:'DRY_RUN'}});

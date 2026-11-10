@@ -3,7 +3,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma.service';
 import { SessionUser, requireOwner } from '../common/access';
 import { appointmentMessage, contactPhone } from './automation-message';
-export type Connection = { id: string; tenantId: string; clinicId: string; tokenHash: string; enabled: boolean; mode: string; channels: string[]; reminderMinutes: number; createdAt: Date };
+import { reminderStage } from './reminder-schedule';
+export type Connection = { id: string; tenantId: string; clinicId: string; tokenHash: string; enabled: boolean; mode: string; channels: string[]; reminderMinutes: number; reminderOffsetsMinutes?: number[]; createdAt: Date };
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const include = { patient: { select: { firstName: true, phone: true } } };
 @Injectable()
@@ -17,8 +18,9 @@ export class AutomationsService {
     const connection = await this.prisma.automationConnection.create({ data: { ...scope, tokenHash: hash(apiKey), mode: 'DRY_RUN' } });
     return { apiKey, mode: connection.mode, channels: connection.channels, message: 'Guarda esta clave en una credencial Header Auth de n8n. Sólo se muestra ahora. La conexión está en modo de prueba.' };
   }
-  async configure(user: SessionUser, data: { enabled?: boolean; mode?: string; channels?: string[]; reminderMinutes?: number }) {
+  async configure(user: SessionUser, data: { enabled?: boolean; mode?: string; channels?: string[]; reminderMinutes?: number; reminderOffsetsMinutes?: number[] }) {
     const scope = this.scope(user);
+    if (data.reminderOffsetsMinutes) data.reminderOffsetsMinutes = [...new Set(data.reminderOffsetsMinutes)].sort((a,b) => b-a);
     const result = await this.prisma.automationConnection.updateMany({ where: scope, data });
     if (!result.count) throw new NotFoundException('Crea primero la conexión con n8n.');
     return this.status(user);
@@ -38,14 +40,14 @@ export class AutomationsService {
   }
   async status(user: SessionUser) {
     const scope = this.scope(user);
-    const connection = await this.prisma.automationConnection.findFirst({ where: scope, select: { enabled: true, mode: true, channels: true, reminderMinutes: true, createdAt: true } });
+    const connection = await this.prisma.automationConnection.findFirst({ where: scope, select: { enabled: true, mode: true, channels: true, reminderMinutes: true, reminderOffsetsMinutes: true, createdAt: true } });
     const counts = await this.prisma.notification.groupBy({ by: ['status'], where: scope, _count: { _all: true } });
     return { connection, counts: counts.map(item => ({ status: item.status, count: item._count._all })) };
   }
-  private async enqueue(connection: Connection, appointment: any, clinic: any, eventType: string, key: string) {
+  private async enqueue(connection: Connection, appointment: any, clinic: any, eventType: string, key: string, schedule?: { minutes: number; dueAt: Date; expiresAt: Date }) {
     const scope = { tenantId: connection.tenantId, clinicId: connection.clinicId };
     const phone = contactPhone(appointment.patient.phone);
-    await this.prisma.notification.createMany({ skipDuplicates: true, data: [...new Set(connection.channels)].map(channel => ({ ...scope, patientId: appointment.patientId, appointmentId: appointment.id, deduplicationKey: `${key}:${connection.mode}:${channel}:${hash(phone ?? "invalid")}`, channel, eventType, recipient: phone ?? '', payload: { ...appointmentMessage(appointment, clinic, eventType), mode: connection.mode, version: appointment.notificationVersion }, status: phone ? 'PENDING' : 'FAILED', lastError: phone ? null : 'invalid_phone' })) });
+    await this.prisma.notification.createMany({ skipDuplicates: true, data: [...new Set(connection.channels)].map(channel => ({ ...scope, patientId: appointment.patientId, appointmentId: appointment.id, deduplicationKey: `${key}:${connection.mode}:${channel}:${hash(phone ?? "invalid")}`, channel, eventType, recipient: phone ?? '', payload: { ...appointmentMessage(appointment, clinic, eventType), mode: connection.mode, version: appointment.notificationVersion, ...(schedule ? { reminderStageMinutes: schedule.minutes, reminderExpiresAt: schedule.expiresAt.toISOString() } : {}) }, ...(schedule ? { scheduledAt: schedule.dueAt } : {}), status: phone ? 'PENDING' : 'FAILED', lastError: phone ? null : 'invalid_phone' })) });
   }
   private async prepare(connection: Connection) {
     const scope = { tenantId: connection.tenantId, clinicId: connection.clinicId }, now = new Date();
@@ -65,8 +67,14 @@ export class AutomationsService {
       }
       await this.prisma.automationEvent.updateMany({ where: { ...scope, id: event.id, status: 'PENDING' }, data: { status: 'DELIVERED', deliveredAt: now } });
     }
-    const upcoming = await this.prisma.appointment.findMany({ where: { ...scope, status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { gt: now, lte: new Date(Date.now() + connection.reminderMinutes * 60000) } }, include });
-    for (const appointment of upcoming) await this.enqueue(connection, appointment, clinic, 'appointment.reminder', `reminder:${connection.clinicId}:${appointment.id}:${appointment.startsAt.toISOString()}:${appointment.notificationVersion}`);
+    const upcoming = await this.prisma.appointment.findMany({ where: { ...scope, status: { in: ['SCHEDULED', 'CONFIRMED'] }, startsAt: { gt: now, lte: new Date(Date.now() + Math.max(...(connection.reminderOffsetsMinutes ?? [connection.reminderMinutes])) * 60000) } }, include });
+    for (const appointment of upcoming) {
+      const key = `reminder:${connection.clinicId}:${appointment.id}:${appointment.startsAt.toISOString()}:${appointment.notificationVersion}`;
+      if (connection.reminderOffsetsMinutes) {
+        const stage = reminderStage(appointment.startsAt, now, connection.reminderOffsetsMinutes);
+        if (stage) await this.enqueue(connection, appointment, clinic, 'appointment.reminder', `${key}:stage:${stage.minutes}`, stage);
+      } else await this.enqueue(connection, appointment, clinic, 'appointment.reminder', key);
+    }
   }
   async claim(connection: Connection, limit: number) {
     await this.prepare(connection);
@@ -74,6 +82,13 @@ export class AutomationsService {
     const pending = await this.prisma.notification.findMany({ where: { ...scope, status: 'PENDING', channel: { in: connection.channels }, scheduledAt: { lte: new Date() } }, orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }], take: limit });
     const jobs = [];
     for (const job of pending) {
+      const payload = job.payload as any;
+      if (job.eventType === 'appointment.reminder' && connection.reminderOffsetsMinutes
+          && (!payload.reminderExpiresAt || new Date(payload.reminderExpiresAt) <= new Date()
+              || !connection.reminderOffsetsMinutes.includes(payload.reminderStageMinutes))) {
+        await this.prisma.notification.updateMany({ where: { ...scope, id: job.id, status: 'PENDING' }, data: { status: 'CANCELLED', lastError: 'reminder_window_expired' } });
+        continue;
+      }
       const deliveryToken = randomBytes(24).toString('hex');
       const result = await this.prisma.notification.updateMany({ where: { ...scope, id: job.id, status: 'PENDING' }, data: { status: 'PROCESSING', deliveryTokenHash: hash(deliveryToken), claimedAt: new Date() } });
       if (result.count) jobs.push({ id: job.id, deliveryToken, channel: job.channel, eventType: job.eventType, recipient: job.recipient, ...(job.payload as any) });
@@ -90,7 +105,9 @@ export class AutomationsService {
     if (job.status !== 'PROCESSING' || !job.appointmentId || !job.claimedAt || Date.now() - job.claimedAt.getTime() > 30 * 60000) return { allowed: false };
     const appointment = await this.prisma.appointment.findFirst({ where: { id: job.appointmentId, tenantId: connection.tenantId, clinicId: connection.clinicId }, include });
     const validStatus = appointment && (job.eventType === 'appointment.cancelled' ? appointment.status === 'CANCELLED' : ['SCHEDULED', 'CONFIRMED'].includes(appointment.status));
-    const allowed = Boolean(connection.channels.includes(job.channel) && validStatus && appointment.startsAt > new Date() && appointment.startsAt.toISOString() === payload.startsAt && appointment.notificationVersion === payload.version && contactPhone(appointment.patient.phone) === job.recipient && (payload.mode === 'DRY_RUN' || connection.mode === 'LIVE'));
+    const inReminderWindow = job.eventType !== 'appointment.reminder' || !connection.reminderOffsetsMinutes
+      || Boolean(payload.reminderExpiresAt && new Date(payload.reminderExpiresAt) > new Date() && connection.reminderOffsetsMinutes.includes(payload.reminderStageMinutes));
+    const allowed = Boolean(inReminderWindow && job.scheduledAt <= new Date() && connection.channels.includes(job.channel) && validStatus && appointment.startsAt > new Date() && appointment.startsAt.toISOString() === payload.startsAt && appointment.notificationVersion === payload.version && contactPhone(appointment.patient.phone) === job.recipient && (payload.mode === 'DRY_RUN' || connection.mode === 'LIVE'));
     if (!allowed) await this.prisma.notification.updateMany({ where: { id: job.id, tenantId: connection.tenantId, clinicId: connection.clinicId, status: 'PROCESSING' }, data: { status: 'CANCELLED', lastError: 'appointment_changed_or_paused' } });
     return { allowed, mode: payload.mode };
   }

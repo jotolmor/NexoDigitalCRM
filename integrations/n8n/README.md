@@ -8,7 +8,7 @@ n8n consulta al CRM cada minuto mediante HTTPS con una clave propia por clínica
 
 Los eventos de alta, cambio de fecha y cambio de estado de una cita se escriben junto con la cita en una transacción. Los cambios de fecha y los estados que invalidan avisos incrementan su versión. Confirmar una reserva existente no repite su recordatorio. Los trabajos validan la versión, teléfono, estado y fecha actuales antes de enviarse. Se preparan confirmaciones, recordatorios, cambios y cancelaciones; no se envían avisos operativos de citas pasadas o completadas.
 
-Los recordatorios se generan para citas futuras que entran en la ventana configurada (24 horas por defecto). Al conectar por primera vez, los eventos históricos anteriores a la conexión no se reproducen; sí se revisan los próximos recordatorios. En una primera conexión dentro de esa ventana puede generarse un recordatorio inmediatamente. Prueba primero el volumen en DRY_RUN.
+Los recordatorios se generan en tres etapas: 72 horas, 24 horas y 1 hora antes de cada cita. `reminderOffsetsMinutes` permite configurar las etapas (minutos, entre 60 y 4320). Cada etapa se deduplica por cita, versión, canal, modo y teléfono. El sondeo cada minuto permite hasta un minuto de demora en el último aviso; después se descarta. Una cita cancelada, reprogramada o con teléfono modificado invalida el trabajo antiguo. Si el sistema se conecta tarde, se ofrece solo la etapa vigente, nunca varios avisos atrasados juntos. Al conectar por primera vez, los eventos históricos anteriores a la conexión no se reproducen; sí se revisan los próximos recordatorios. En una primera conexión dentro de esa ventana puede generarse un recordatorio inmediatamente. Prueba primero el volumen en DRY_RUN.
 
 Los canales se eligen por clínica: `WHATSAPP`, `SMS`, `CALL`. Cada canal seleccionado recibe su propio trabajo. El valor inicial es sólo WhatsApp; el script permite simular los tres antes de decidir qué canales activar realmente. No hay sustitución automática entre canales ni reintentos de envío externos.
 
@@ -72,7 +72,7 @@ Propietario con JWT:
 
 - POST `/api/automations/n8n/connection`: crear clave, una vez.
 - GET `/api/automations/n8n/connection`: configuración y recuentos, sin secretos.
-- PATCH `/api/automations/n8n/connection`: enabled, mode, channels y reminderMinutes.
+- PATCH `/api/automations/n8n/connection`: enabled, mode, channels y reminderOffsetsMinutes (por defecto `[4320,1440,60]`). `reminderMinutes` se conserva como ajuste heredado, pero las conexiones actuales usan las etapas.
 - POST `/api/automations/n8n/rotate-key`: sustituir la clave.
 
 n8n con clave dedicada:
@@ -93,3 +93,13 @@ python3 scripts/build-n8n-workflow.py
 ```
 
 Las pruebas utilizan Prisma y proveedor simulados; no crean conexiones en el n8n de producción, no han aplicado su migración y no han enviado mensajes ni llamadas. La importación/ejecución en tu versión concreta de n8n sigue siendo una comprobación pendiente en el servidor.
+
+## De prueba individual a todos los pacientes
+
+La planificación del CRM incluye a todos los pacientes de la clínica autenticada con citas programadas o confirmadas y teléfono válido. Los botones de Próximas citas preparan mensajes manuales por WhatsApp/SMS; no registran un envío automático ni omiten otros pacientes.
+
+La configuración del servidor se conserva durante esta actualización: no se activa LIVE ni se cambian canales. Si el workflow instalado contiene el filtro `Solo prueba Jorge`, ese filtro sigue restringiendo los envíos reales. Después de preparar los canales de producción, retira únicamente ese filtro y conecta la salida false de `Es simulacion` a `Canal SMS`, conservando la validación y las demás comprobaciones. No dupliques el flujo de sondeo.
+
+El Sandbox WhatsApp solo entrega a participantes unidos durante las últimas 72 horas. Para avisar a todos los pacientes se necesita un remitente de producción y una plantilla aprobada. La plantilla Sandbox usada en pruebas es inglesa y solo admite fecha y hora; no basta para el texto personalizado español del CRM. Para el texto completo, crea una plantilla de recordatorio con variables `1` nombre, `2` fecha/hora local, `3` clínica y texto de contacto si no puede asistir; asigna su Content SID y usa `JSON.stringify($('Separar trabajos').item.json.variables)` como ContentVariables. El saludo de las plantillas debe ser fijo, por ejemplo «Hola», a menos que se apruebe una variable adicional. SMS y voz usan el texto personalizado con saludo local del CRM. Las cuentas de prueba SMS/voz están limitadas a destinatarios verificados.
+
+Antes de activar LIVE, comprueba el volumen por clínica, los canales seleccionados y los avisos en DRY_RUN. Activar dos canales genera un recordatorio por canal en cada etapa. Los trabajos antiguos sin etapa se descartan; no se reenvían ni se convierten automáticamente los simulados.

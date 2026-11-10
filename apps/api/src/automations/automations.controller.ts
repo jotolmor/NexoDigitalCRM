@@ -1,9 +1,9 @@
 import { Body, CanActivate, Controller, ExecutionContext, Get, Injectable, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionUser } from '../common/access';
 import { AutomationsService, Connection } from './automations.service';
-class SettingsDto { @ValidateIf((_,value)=>value!==undefined) @IsBoolean() enabled?: boolean; @ValidateIf((_,value)=>value!==undefined) @IsIn(['DRY_RUN','LIVE']) mode?: string; @ValidateIf((_,value)=>value!==undefined) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3) @IsIn(['SMS','WHATSAPP','CALL'],{each:true}) channels?: string[]; @ValidateIf((_,value)=>value!==undefined) @IsInt() @Min(15) @Max(10080) reminderMinutes?: number; }
+class SettingsDto { @ValidateIf((_,value)=>value!==undefined) @IsBoolean() enabled?: boolean; @ValidateIf((_,value)=>value!==undefined) @IsIn(['DRY_RUN','LIVE']) mode?: string; @ValidateIf((_,value)=>value!==undefined) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3) @IsIn(['SMS','WHATSAPP','CALL'],{each:true}) channels?: string[]; @ValidateIf((_,value)=>value!==undefined) @IsInt() @Min(15) @Max(10080) reminderMinutes?: number; @ValidateIf((_,value)=>value!==undefined) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(6) @ArrayUnique() @IsInt({each:true}) @Min(60,{each:true}) @Max(4320,{each:true}) reminderOffsetsMinutes?: number[]; }
 class ClaimDto { @ValidateIf((_,value)=>value!==undefined) @IsInt() @Min(1) @Max(20) limit = 10; }
 class TokenDto { @IsString() @MinLength(48) @MaxLength(48) deliveryToken!: string; }
 class ResultDto extends TokenDto { @IsIn(['SENT','FAILED','SIMULATED']) status!: 'SENT'|'FAILED'|'SIMULATED'; @IsOptional() @IsString() @MinLength(1) @MaxLength(100) providerMessageId?: string; }

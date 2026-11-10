@@ -1,0 +1,2 @@
+ALTER TABLE "AutomationConnection"
+ADD COLUMN "reminderOffsetsMinutes" INTEGER[] NOT NULL DEFAULT ARRAY[4320,1440,60]::INTEGER[];
