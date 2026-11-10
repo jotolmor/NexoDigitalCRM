@@ -11,7 +11,6 @@ type Props = {
 
 export function AppointmentPersonCards({ roster, timezone, onDetails }: Props) {
   const time = (value: string) => new Intl.DateTimeFormat('es-ES', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
-  if (!roster.total) return <p className="overview-empty">No hay citas para este día.</p>;
 
   function card(subject: PersonSubject, firstName: string, lastName: string, description: string, appointments: DayAppointment[]) {
     const name = `${firstName} ${lastName}`.trim();
@@ -27,11 +26,11 @@ export function AppointmentPersonCards({ roster, timezone, onDetails }: Props) {
   }
 
   return <div className="person-roster-groups">
-    <section className="person-roster-group" aria-label="Doctores con citas">
-      <h3>Doctores con citas</h3><div className="person-card-list">{roster.doctors.map(({ professional, appointments }) => card({ kind: 'doctor', id: professional.id }, professional.firstName, professional.lastName, professional.specialty || 'Profesional', appointments))}</div>
+    <section className="panel person-roster-group" aria-label="Doctores con citas">
+      <div className="person-roster-heading"><h3>Doctores con citas</h3><span>{roster.doctors.length} profesionales · {timezone}</span></div>{!roster.total && <p className="overview-empty">No hay citas para este día.</p>}<div className="person-card-list">{roster.doctors.map(({ professional, appointments }) => card({ kind: 'doctor', id: professional.id }, professional.firstName, professional.lastName, professional.specialty || 'Profesional', appointments))}</div>
     </section>
-    <section className="person-roster-group" aria-label="Pacientes con citas">
-      <h3>Pacientes con citas</h3><div className="person-card-list">{roster.patientGroups.map(({ patient, appointments }) => {
+    <section className="panel person-roster-group" aria-label="Pacientes con citas">
+      <div className="person-roster-heading"><h3>Pacientes con citas</h3><span>{roster.patients} pacientes · {timezone}</span></div>{!roster.total && <p className="overview-empty">No hay citas para este día.</p>}<div className="person-card-list">{roster.patientGroups.map(({ patient, appointments }) => {
         const professionals = new Map(appointments.map(item => [item.professional.id, `${item.professional.firstName} ${item.professional.lastName}`.trim()]));
         return card({ kind: 'patient', id: patient.id }, patient.firstName, patient.lastName, 'Con ' + [...professionals.values()].join(' · '), appointments);
       })}</div>

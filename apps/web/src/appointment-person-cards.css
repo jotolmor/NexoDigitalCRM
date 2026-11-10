@@ -1,4 +1,10 @@
-.person-roster-groups { display: grid; gap: 30px; }
+.person-roster-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.overview-roster-separated { padding: 0; }
+.person-roster-group.panel { margin: 0; padding: 24px; min-width: 0; }
+.person-roster-heading { margin-bottom: 20px; }
+.person-roster-heading h3 { margin: 0 0 8px; color: #0f172a; font-size: 1.15rem; }
+.person-roster-heading > span { color: #64748b; font-size: .78rem; }
+@media (max-width: 900px) { .person-roster-groups { grid-template-columns: minmax(0, 1fr); } }
 .person-roster-group > h3 { margin: 0 0 16px; color: #64748b; font-size: .73rem; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 .person-card-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 20px; align-items: stretch; }
 .person-card {
