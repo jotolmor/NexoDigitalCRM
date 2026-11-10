@@ -1,5 +1,6 @@
 """Merged appointments page and cache refresh, with a fully mocked API."""
 import asyncio, os, re
+from urllib.parse import unquote
 from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 from playwright.async_api import async_playwright, expect
@@ -54,7 +55,7 @@ async def main():
   await expect(nav.get_by_role('button',name='Resumen',exact=True)).to_have_count(0)
   await expect(page.get_by_role('heading',name='Agenda · 2026')).to_be_visible()
   await expect(page.get_by_role('heading',name='Nueva cita',exact=True)).to_be_visible()
-  assert await page.locator('.appointment-create-panel').evaluate('(e)=>e.getBoundingClientRect().bottom <= document.querySelector(".calendar-panel").getBoundingClientRect().top')
+  assert await page.locator('.appointment-create-panel').evaluate('(e)=>e.getBoundingClientRect().top >= document.querySelector(".calendar-panel").getBoundingClientRect().bottom')
   await expect(page.locator('.clinic-location-card')).to_have_count(0)
   await expect(page.locator('.workspace-location-value')).to_have_text(address)
   await expect(page.get_by_role('heading',name='Próximas citas')).to_be_visible()
@@ -67,6 +68,17 @@ async def main():
   await expect(page.locator('.overview-roster')).to_contain_text('Candela Prueba')
   await expect(page.locator('.overview-roster')).to_contain_text('12:00–12:30')
   await expect(page.locator('.appointment-list')).to_contain_text('Candela Prueba')
+  whatsapp=page.get_by_role('link',name='Enviar recordatorio WhatsApp',exact=True)
+  sms=page.get_by_role('link',name='Enviar recordatorio SMS',exact=True)
+  await expect(whatsapp).to_have_count(1)
+  await expect(sms).to_have_count(1)
+  whatsapp_href=unquote(await whatsapp.get_attribute('href'))
+  sms_href=unquote(await sms.get_attribute('href'))
+  assert whatsapp_href.startswith('https://wa.me/34600000000?text=')
+  assert sms_href.startswith('sms:+34600000000?body=')
+  assert 'Hola, buenos días, Candela.' in whatsapp_href
+  assert 'en Demo para el 5 de noviembre de 2026 a las 12:00' in whatsapp_href
+  assert 'póngase en contacto con la clínica' in sms_href
   await page.locator('.appointment-card').hover()
   assert await page.locator('.appointment-card').evaluate('e=>getComputedStyle(e).transform')=='none'
   assert len(writes)==1 and writes[0][1]['startsAt']=='2026-11-05T11:00:00.000Z',writes
