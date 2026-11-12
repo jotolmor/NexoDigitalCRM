@@ -1,3 +1,4 @@
+import { useCustomerText } from './customer-terminology';
 import { useRef, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { clinicDateKey, type DayAppointment } from './overview-data';
@@ -12,6 +13,7 @@ type Filters = { patient: string; professional: string; date: string; status: st
 export function AppointmentSearch({ scope, timezone, load, onSelectDate }: {
   scope: string[]; timezone: string; load: (path: string) => Promise<any>; onSelectDate: (date: string) => void;
 }) {
+  const t = useCustomerText();
   const [filters, setFilters] = useState<Filters | null>(null);
   const [open, setOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -43,9 +45,9 @@ export function AppointmentSearch({ scope, timezone, load, onSelectDate }: {
   }
   return <div ref={calendarRef} className="appointment-search-wrap">
     <section className="panel appointment-search-panel" aria-label="Buscar citas">
-      <div className="appointment-search-heading"><p className="eyebrow">Consulta la agenda</p><h2>Buscar citas</h2><p>Encuentra una cita por paciente, profesional, fecha o estado.</p></div>
+      <div className="appointment-search-heading"><p className="eyebrow">Consulta la agenda</p><h2>Buscar citas</h2><p>{t("Encuentra una cita por paciente, profesional, fecha o estado.")}</p></div>
       <form className="appointment-search-form" onSubmit={search}>
-        <label>Paciente<input name="patient" type="search" placeholder="Nombre, apellidos, DNI o teléfono" maxLength={150} /></label>
+        <label>{t("Paciente")}<input name="patient" type="search" placeholder="Nombre, apellidos, DNI o teléfono" maxLength={150} /></label>
         <label>Profesional<select name="professional" disabled={professionals.isLoading}><option value="">Todos los profesionales</option>{professionals.data?.map(person => <option value={person.id} key={person.id}>{person.firstName} {person.lastName}</option>)}</select></label>
         <label>Fecha<input name="date" type="date" /></label>
         <label>Estado<select name="status"><option value="">Todos los estados</option>{Object.entries(states).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>

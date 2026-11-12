@@ -38,6 +38,10 @@ nexo_files=(
   apps/web/src/appointment-person-cards.css
   apps/web/src/appointment-reminder.ts
   apps/web/src/appointments-page.css
+  apps/web/src/customer-terminology.tsx
+  apps/web/src/patient-create-form.tsx
+  apps/web/src/patient-followup-search.tsx
+  apps/web/src/shift-reservation.tsx
   integrations/n8n/nexocrm-notifications.json
   integrations/n8n/README.md
   scripts/setup-n8n-connection.py

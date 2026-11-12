@@ -1,3 +1,4 @@
+import { useCustomerText } from './customer-terminology';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -34,6 +35,7 @@ function Roster({ appointments, timezone }: { appointments: DayAppointment[]; ti
 }
 
 export function AppointmentOverview({ session, timezone, load, selectedDate, onSelectDate }: Props) {
+  const t = useCustomerText();
   const [month, setMonth] = useState(() => { const [year, month] = selectedDate.split('-').map(Number); return new Date(year, Math.floor((month - 1) / 3) * 3, 1); });
   useEffect(() => {
     const [year, month] = selectedDate.split('-').map(Number);
@@ -61,8 +63,8 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
   const personName = person ? `${person.firstName} ${person.lastName}`.trim() : 'esta persona';
   const detailTitle = popover.kind === 'day' ? selectedLabel : `Citas de ${personName}`;
   const detailSummary = popover.kind === 'day'
-    ? `${roster.doctors.length} doctores · ${roster.patients} pacientes · ${roster.total} citas`
-    : `${detailRoster.total} ${detailRoster.total === 1 ? 'cita' : 'citas'} · ${popover.kind === 'doctor' ? `${detailRoster.patients} ${detailRoster.patients === 1 ? 'paciente' : 'pacientes'}` : `${detailRoster.doctors.length} ${detailRoster.doctors.length === 1 ? 'profesional' : 'profesionales'}`}`;
+    ? `${roster.doctors.length} doctores · ${roster.patients} ${t("pacientes")} · ${roster.total} citas`
+    : `${detailRoster.total} ${detailRoster.total === 1 ? 'cita' : 'citas'} · ${popover.kind === 'doctor' ? `${detailRoster.patients} ${detailRoster.patients === 1 ? t("paciente") : t("pacientes")}` : `${detailRoster.doctors.length} ${detailRoster.doctors.length === 1 ? 'profesional' : 'profesionales'}`}`;
 
   useLayoutEffect(() => {
     if (!anchor || !dialog.current) return;
@@ -115,13 +117,13 @@ export function AppointmentOverview({ session, timezone, load, selectedDate, onS
 
   return <div className="appointment-overview">
     <AppointmentSearch scope={scope} timezone={timezone} load={load} onSelectDate={onSelectDate} />
-    <section className="calendar-panel"><div className="calendar-heading"><div><p className="eyebrow">Calendario de citas</p><h2>Agenda · {year}</h2><p>Pulsa un día para ver sus doctores y pacientes.</p></div><div className="calendar-controls"><button type="button" className="secondary" aria-label="Trimestre anterior" onClick={() => setMonth(new Date(year, month.getMonth() - 3, 1))}>‹</button><span>{Math.floor(month.getMonth() / 3) + 1} / 4</span><button type="button" className="secondary" aria-label="Trimestre siguiente" onClick={() => setMonth(new Date(year, month.getMonth() + 3, 1))}>›</button></div></div>
+    <section className="calendar-panel"><div className="calendar-heading"><div><p className="eyebrow">Calendario de citas</p><h2>Agenda · {year}</h2><p>{t("Pulsa un día para ver sus doctores y pacientes.")}</p></div><div className="calendar-controls"><button type="button" className="secondary" aria-label="Trimestre anterior" onClick={() => setMonth(new Date(year, month.getMonth() - 3, 1))}>‹</button><span>{Math.floor(month.getMonth() / 3) + 1} / 4</span><button type="button" className="secondary" aria-label="Trimestre siguiente" onClick={() => setMonth(new Date(year, month.getMonth() + 3, 1))}>›</button></div></div>
       {calendar.isLoading ? <p role="status">Cargando calendario…</p> : calendar.isError ? <p className="error" role="alert">No se pudo cargar el calendario.</p> : <><div className="calendar-months">{[0, 1, 2].map(index => monthView(month.getMonth() + index))}</div><div className="calendar-legend"><span><i className="day-free" />Libre</span><span><i className="day-partial" />Ocupación parcial</span><span><i className="day-full" />Completo</span><span><i className="day-closed" />Sin horario</span></div></>}
     </section>
-    <section className="overview-roster overview-roster-separated" aria-label="Doctores y pacientes con citas">{dayContent}</section>
+    <section className="overview-roster overview-roster-separated" aria-label={t("Doctores y pacientes con citas")}>{dayContent}</section>
     {anchor && createPortal(<dialog ref={dialog} className={`day-popover${position.above ? " above" : ""}`} aria-labelledby="day-popover-title" style={{ left: position.left, top: position.top }} onCancel={close}
       onClick={event => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close(); } }}>
-      <span className="day-popover-pointer" aria-hidden="true" style={{ left: position.pointer }} /><div className="day-popover-scroll"><div className="day-popover-heading"><div><p className="eyebrow">{popover.kind === 'day' ? 'Agenda del día' : popover.kind === 'doctor' ? 'Agenda del profesional' : 'Agenda del paciente'}</p><h2 id="day-popover-title">{detailTitle}</h2>{popover.kind !== 'day' && <p>{selectedLabel}</p>}<p>{day.isLoading ? 'Cargando…' : day.isError ? 'Consulta no disponible' : detailSummary}</p><small>Horario {localTimezone}</small></div><button type="button" className="secondary" aria-label={popover.kind === 'day' ? 'Cerrar citas del día' : 'Cerrar detalles de citas'} autoFocus onClick={close}>×</button></div>{detailContent}</div>
+      <span className="day-popover-pointer" aria-hidden="true" style={{ left: position.pointer }} /><div className="day-popover-scroll"><div className="day-popover-heading"><div><p className="eyebrow">{popover.kind === 'day' ? 'Agenda del día' : popover.kind === 'doctor' ? 'Agenda del profesional' : t("Agenda del paciente")}</p><h2 id="day-popover-title">{detailTitle}</h2>{popover.kind !== 'day' && <p>{selectedLabel}</p>}<p>{day.isLoading ? 'Cargando…' : day.isError ? 'Consulta no disponible' : detailSummary}</p><small>Horario {localTimezone}</small></div><button type="button" className="secondary" aria-label={popover.kind === 'day' ? 'Cerrar citas del día' : 'Cerrar detalles de citas'} autoFocus onClick={close}>×</button></div>{detailContent}</div>
     </dialog>, document.body)}
   </div>;
 }
