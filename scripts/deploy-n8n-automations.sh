@@ -42,6 +42,9 @@ nexo_files=(
   apps/web/src/patient-create-form.tsx
   apps/web/src/patient-followup-search.tsx
   apps/web/src/shift-reservation.tsx
+  apps/web/src/dashboard-navigation.tsx
+  apps/web/src/dashboard-navigation.css
+  apps/web/src/professional-shifts.tsx
   integrations/n8n/nexocrm-notifications.json
   integrations/n8n/README.md
   scripts/setup-n8n-connection.py

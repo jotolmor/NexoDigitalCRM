@@ -25,6 +25,7 @@ function NavigationIcon({ name }: { name: keyof typeof icons }) {
 type Props = {
   items: { view: WorkspaceView; label: string }[];
   active: WorkspaceView;
+  homeView?: WorkspaceView;
   date: string;
   isToday: boolean;
   address: string;
@@ -33,7 +34,7 @@ type Props = {
   onLogout: () => void;
 };
 
-export function DashboardNavigation({ items, active, date, isToday, address, onSaveAddress, onSelect, onLogout }: Props) {
+export function DashboardNavigation({ items, active, homeView = 'Asistente', date, isToday, address, onSaveAddress, onSelect, onLogout }: Props) {
   const location = useRef<HTMLDetailsElement>(null);
   const [addressOpen, setAddressOpen] = useState(false);
   const [addressDraft, setAddressDraft] = useState(address);
@@ -55,7 +56,7 @@ export function DashboardNavigation({ items, active, date, isToday, address, onS
     <a className="workspace-skip" href="#workspace-content">Ir al contenido</a>
     <div className="workspace-top-inner">
       <header className="workspace-header">
-        <button type="button" className="workspace-brand" onClick={() => onSelect('Asistente')} aria-label="CrmNexodigitalAssist · Ir al asistente">
+        <button type="button" className="workspace-brand" onClick={() => onSelect(homeView)} aria-label={homeView === 'Asistente' ? 'CrmNexodigitalAssist · Ir al asistente' : 'CrmNexodigitalAssist · Ir al inicio'}>
           <img src="/branding/crm-nexodigital-assist-light.svg" width="272" height="92" alt="CrmNexodigitalAssist" />
         </button>
         <div className="workspace-context">
@@ -83,7 +84,7 @@ export function DashboardNavigation({ items, active, date, isToday, address, onS
         </div>
         <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>
       </header>
-      <nav className="workspace-nav" aria-label="Navegación principal">
+      <nav className={items.length === 6 ? "workspace-nav workspace-nav-six" : "workspace-nav"} aria-label="Navegación principal">
         {items.map(({ view, label }) => <button
           key={view} type="button" className={'workspace-nav-card' + (active === view ? ' is-active' : '')}
           aria-current={active === view ? 'page' : undefined} onClick={() => onSelect(view)}

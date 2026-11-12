@@ -36,6 +36,7 @@
 .workspace-logout svg { width: 17px; height: 17px; }
 .workspace-logout:hover { background: #fff; color: #334155; border-color: #c7d2fe; }
 .workspace-nav { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; padding: 2px 0 6px; }
+.workspace-nav-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .workspace-nav-card {
   --workspace-border-angle: 135deg;
   position: relative;

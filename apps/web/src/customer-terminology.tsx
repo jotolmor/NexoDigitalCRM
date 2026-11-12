@@ -2,6 +2,12 @@ import { createContext, useContext, type ReactNode } from 'react';
 
 const CustomerSector = createContext('CLINIC');
 
+export const sectorHasAppointments = (businessType?: string) => businessType !== 'AUTOMOTIVE';
+
+export function useAppointmentsEnabled() {
+  return sectorHasAppointments(useContext(CustomerSector));
+}
+
 export function customerText(text: string, businessType = 'CLINIC') {
   if (businessType === 'CLINIC') return text;
   const singular = businessType === 'EDUCATION' ? 'alumno' : 'cliente';

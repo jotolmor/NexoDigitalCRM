@@ -1,4 +1,4 @@
-import { useCustomerText } from './customer-terminology';
+import { useAppointmentsEnabled, useCustomerText } from './customer-terminology';
 import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { clinicDateKey } from './overview-data';
@@ -21,6 +21,7 @@ type Props = {
 
 export function PatientCreateForm({ createPatient, onCreated, horizontal = false, timezone = 'Europe/Madrid' }: Props) {
   const t = useCustomerText();
+  const appointmentsEnabled = useAppointmentsEnabled();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -57,7 +58,7 @@ export function PatientCreateForm({ createPatient, onCreated, horizontal = false
   }
 
   return <form className={'patient-create-form ' + (horizontal ? 'patient-create-horizontal' : 'directory-create')} onSubmit={submit} aria-label={t("Nuevo paciente")} aria-busy={busy}>
-    <div className="patient-create-heading"><div>{horizontal && <p className="eyebrow">{t("Pacientes")}</p>}<h2>{horizontal ? t("Nuevo paciente") : t("Añadir paciente")}</h2></div>{horizontal && <p>Registra sus datos y continúa con la reserva de su cita.</p>}</div>
+    <div className="patient-create-heading"><div>{horizontal && <p className="eyebrow">{t("Pacientes")}</p>}<h2>{horizontal ? t("Nuevo paciente") : t("Añadir paciente")}</h2></div>{horizontal && <p>{appointmentsEnabled ? 'Registra sus datos y continúa con la reserva de su cita.' : 'Registra sus datos para gestionar los servicios de tu negocio.'}</p>}</div>
     <div className="patient-create-fields">{patientFields.map(([key, label]) => <label key={key} className={'patient-field-' + key}>{label}<input name={key} type={key === 'dateOfBirth' ? 'date' : key === 'age' ? 'number' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} value={key === 'dateOfBirth' ? birthDate : key === 'age' ? ageValue : undefined} onChange={key === 'dateOfBirth' ? event => setBirthDate(event.target.value) : key === 'age' ? event => setManualAge(event.target.value) : undefined} readOnly={key === 'age' && Boolean(birthDate)} min={key === 'age' ? 0 : undefined} max={key === 'dateOfBirth' ? today : key === 'age' ? 130 : undefined} step={key === 'age' ? 1 : undefined} minLength={key === 'dni' ? 3 : undefined} maxLength={key === 'dni' ? 20 : key === 'postalCode' ? 20 : key === 'province' ? 120 : undefined} required={key === 'firstName' || key === 'lastName'} disabled={busy} /></label>)}</div>
     {error && <p className="error" role="alert">{error}</p>}
     {message && <p className="success" role="status">{message}</p>}
