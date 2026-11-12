@@ -16,6 +16,10 @@ git -C "$nexo_source_root" cat-file -e "${nexo_deploy_ref}^{commit}"
 
 nexo_files=(
   apps/api/prisma/schema.prisma
+  apps/api/prisma/migrations/20261112120000_development_businesses/migration.sql
+  apps/api/src/development/development.service.ts
+  apps/api/src/development/development.module.ts
+  apps/api/src/auth/auth.service.ts
   apps/api/prisma/migrations/20261105120000_patient_details/migration.sql
   apps/api/prisma/migrations/20261105170000_service_specialties/migration.sql
   apps/api/prisma/migrations/20261105180000_patient_dni/migration.sql
@@ -31,6 +35,9 @@ nexo_files=(
   apps/api/src/automations/automation-message.ts
   apps/api/src/automations/reminder-schedule.ts
   apps/web/src/main.tsx
+  apps/web/src/access-pages.tsx
+  apps/web/src/development-businesses.tsx
+  apps/web/src/development-businesses.css
   apps/web/src/appointment-overview.tsx
   apps/web/src/appointment-search.tsx
   apps/web/src/appointment-search.css
@@ -48,6 +55,7 @@ nexo_files=(
   integrations/n8n/nexocrm-notifications.json
   integrations/n8n/README.md
   scripts/setup-n8n-connection.py
+  scripts/setup-development-account.py
 )
 nexo_deploy_archive="$(mktemp /tmp/nexocrm-n8n-automations.XXXXXX)"
 trap 'rm -f "$nexo_deploy_archive"' EXIT

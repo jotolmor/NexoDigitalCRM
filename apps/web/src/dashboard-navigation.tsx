@@ -26,6 +26,7 @@ type Props = {
   items: { view: WorkspaceView; label: string }[];
   active: WorkspaceView;
   homeView?: WorkspaceView;
+  developmentPanel?: ReactNode;
   date: string;
   isToday: boolean;
   address: string;
@@ -34,7 +35,7 @@ type Props = {
   onLogout: () => void;
 };
 
-export function DashboardNavigation({ items, active, homeView = 'Asistente', date, isToday, address, onSaveAddress, onSelect, onLogout }: Props) {
+export function DashboardNavigation({ items, active, homeView = 'Asistente', developmentPanel, date, isToday, address, onSaveAddress, onSelect, onLogout }: Props) {
   const location = useRef<HTMLDetailsElement>(null);
   const [addressOpen, setAddressOpen] = useState(false);
   const [addressDraft, setAddressDraft] = useState(address);
@@ -84,6 +85,7 @@ export function DashboardNavigation({ items, active, homeView = 'Asistente', dat
         </div>
         <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>
       </header>
+      {developmentPanel}
       <nav className={items.length === 6 ? "workspace-nav workspace-nav-six" : "workspace-nav"} aria-label="Navegación principal">
         {items.map(({ view, label }) => <button
           key={view} type="button" className={'workspace-nav-card' + (active === view ? ' is-active' : '')}

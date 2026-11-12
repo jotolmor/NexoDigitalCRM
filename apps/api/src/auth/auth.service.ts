@@ -31,7 +31,7 @@ export class AuthService {
     });
     return this.session(created.user);
   }
-  private terminologyFor(businessType: string) {
+  terminologyFor(businessType: string) {
     const labels: Record<string, { customer: string; customers: string; professional: string; professionals: string; appointment: string; appointments: string; service: string; services: string }> = {
       CLINIC: { customer: 'paciente', customers: 'pacientes', professional: 'profesional', professionals: 'profesionales', appointment: 'cita', appointments: 'citas', service: 'servicio', services: 'servicios' },
       BEAUTY: { customer: 'cliente', customers: 'clientes', professional: 'especialista', professionals: 'especialistas', appointment: 'reserva', appointments: 'reservas', service: 'tratamiento', services: 'tratamientos' },
@@ -54,8 +54,8 @@ export class AuthService {
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('El correo ya está en uso');
     return this.prisma.user.create({ data: { tenantId, clinicId, name: input.name, email, passwordHash: await bcrypt.hash(input.password, 12), role: input.role }, select: { id: true, name: true, email: true, role: true, createdAt: true } });
   }
-  private session(user: { id: string; tenantId: string; clinicId: string | null; email: string; name: string; role: string }) {
+  private session(user: { id: string; tenantId: string; clinicId: string | null; email: string; name: string; role: string; isDeveloper?: boolean }) {
     const payload = { sub: user.id, tenantId: user.tenantId, clinicId: user.clinicId, role: user.role };
-    return { accessToken: this.jwt.sign(payload), user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, clinicId: user.clinicId, role: user.role } };
+    return { accessToken: this.jwt.sign(payload), user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, clinicId: user.clinicId, role: user.role, isDeveloper: Boolean(user.isDeveloper) } };
   }
 }

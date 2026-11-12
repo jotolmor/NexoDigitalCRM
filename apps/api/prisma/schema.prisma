@@ -91,6 +91,7 @@ model Clinic {
   notificationTemplates NotificationTemplate[]
   notifications Notification[]
   automationConnection AutomationConnection?
+  developmentBusiness DevelopmentBusiness?
   rooms Room[]
   waitlistEntries WaitlistEntry[]
   @@index([tenantId])
@@ -200,11 +201,23 @@ model User {
   passwordHash String
   name         String
   role         UserRole @default(CLINIC_OWNER)
+  isDeveloper  Boolean @default(false)
+  developmentBusinesses DevelopmentBusiness[]
   createdAt    DateTime @default(now())
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clinic       Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
   @@unique([email])
   @@index([tenantId])
+}
+
+model DevelopmentBusiness {
+  id String @id @default(cuid())
+  developerUserId String
+  clinicId String @unique
+  createdAt DateTime @default(now())
+  developer User @relation(fields: [developerUserId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  @@index([developerUserId])
 }
 
 model Patient {

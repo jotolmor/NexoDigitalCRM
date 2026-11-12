@@ -3,7 +3,7 @@ import { registrationSectors, sectorSpecialties, type RegistrationSector } from 
 
 export type Session = {
   accessToken: string;
-  user: { id: string; name: string; tenantId: string; clinicId?: string | null };
+  user: { id: string; name: string; tenantId: string; clinicId?: string | null; isDeveloper?: boolean };
 };
 type Props = { onSession: (session: Session) => void };
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';

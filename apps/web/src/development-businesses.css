@@ -1,0 +1,10 @@
+.development-businesses.panel { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 18px 20px; margin: 0 0 22px; }
+.development-businesses > div:first-child { margin-right: auto; }
+.development-businesses .eyebrow { margin: 0 0 6px; }
+.development-businesses label, .development-business-form label { display: grid; gap: 8px; font-size: .85rem; color: #334155; font-weight: 600; }
+.development-businesses select { max-width: 440px; min-height: 44px; }
+.development-businesses > .error { width: 100%; }
+.development-business-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.development-business-form :is(input, select) { min-width: 0; width: 100%; }
+.development-business-form > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+@media(max-width: 700px) { .development-businesses > label { width: 100%; } .development-businesses select { max-width: 100%; width: 100%; } }

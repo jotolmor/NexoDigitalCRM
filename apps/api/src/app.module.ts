@@ -1,3 +1,4 @@
+import { DevelopmentModule } from './development/development.module';
 import { AutomationsModule } from './automations/automations.module';
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
@@ -20,5 +21,5 @@ import { DocumentsModule } from './documents/documents.module';
 import { HealthModule } from './health/health.module';
 import { AssistantModule } from './assistant/assistant.module';
 
-@Module({ imports: [PrismaModule, AutomationsModule, HealthModule, AssistantModule, AuditModule, AuthModule, ClinicsModule, DashboardModule, PatientsModule, CatalogModule, MembersModule, AppointmentsModule, FollowUpsModule, ReportsModule, NotificationsModule, SchedulingModule, RoomsModule, WaitlistModule, ConsentsModule, DocumentsModule] })
+@Module({ imports: [PrismaModule, DevelopmentModule, AutomationsModule, HealthModule, AssistantModule, AuditModule, AuthModule, ClinicsModule, DashboardModule, PatientsModule, CatalogModule, MembersModule, AppointmentsModule, FollowUpsModule, ReportsModule, NotificationsModule, SchedulingModule, RoomsModule, WaitlistModule, ConsentsModule, DocumentsModule] })
 export class AppModule {}
