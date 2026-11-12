@@ -13,7 +13,7 @@ function setup() {
     clinic: { create: jest.fn().mockResolvedValue({ id: 'clinic' }) },
     user: { create: jest.fn().mockResolvedValue({ id: 'user', tenantId: 'tenant', clinicId: 'clinic', name: 'Usuario', email: registration.email, role: 'CLINIC_OWNER' }) }
   };
-  const prisma = { tenant: { findUnique: jest.fn().mockResolvedValue(null) }, $transaction: jest.fn().mockImplementation(callback => callback(tx)) };
+  const prisma = { user: { findUnique: jest.fn().mockResolvedValue(null) }, tenant: { findUnique: jest.fn().mockResolvedValue(null) }, $transaction: jest.fn().mockImplementation(callback => callback(tx)) };
   return { tx, service: new AuthService(prisma as any, { sign: jest.fn().mockReturnValue('fixture-token') } as any) };
 }
 

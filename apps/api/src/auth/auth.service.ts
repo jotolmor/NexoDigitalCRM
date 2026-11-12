@@ -8,15 +8,26 @@ import { PrismaService } from '../prisma.service';
 export class AuthService {
   constructor(private prisma: PrismaService, private jwt: JwtService) {}
   async register(input: { clinicName: string; specialty: string; businessType?: string; address?: string; name: string; email: string; password: string }) {
+    const email = input.email.trim().toLowerCase();
+    if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('Este correo ya está registrado. Inicia sesión o utiliza otro correo.');
     const slug = input.clinicName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    if (await this.prisma.tenant.findUnique({ where: { slug } })) throw new ConflictException('Ya existe una clínica con ese nombre');
+    if (await this.prisma.tenant.findUnique({ where: { slug } })) throw new ConflictException('Ya existe un negocio con ese nombre');
     const passwordHash = await bcrypt.hash(input.password, 12);
     const created = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const tenant = await tx.tenant.create({ data: { name: input.clinicName, slug } });
       const businessType = input.businessType ?? 'CLINIC';
       const clinic = await tx.clinic.create({ data: { tenantId: tenant.id, name: input.clinicName, specialty: input.specialty, businessType, address: input.address?.trim() || null, terminology: this.terminologyFor(businessType) } });
-      const user = await tx.user.create({ data: { tenantId: tenant.id, clinicId: clinic.id, name: input.name, email: input.email.toLowerCase(), passwordHash, role: 'CLINIC_OWNER' } });
+      const user = await tx.user.create({ data: { tenantId: tenant.id, clinicId: clinic.id, name: input.name, email, passwordHash, role: 'CLINIC_OWNER' } });
       return { tenant, clinic, user };
+    }).catch((error: unknown) => {
+      // The unique indexes also protect against two simultaneous registrations.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = String(error.meta?.target ?? '');
+        if (target.includes('email')) throw new ConflictException('Este correo ya está registrado. Inicia sesión o utiliza otro correo.');
+        if (target.includes('slug')) throw new ConflictException('Ya existe un negocio con ese nombre');
+        throw new ConflictException('Ya existe una cuenta con estos datos. Inicia sesión o revisa el correo y el nombre del negocio.');
+      }
+      throw error;
     });
     return this.session(created.user);
   }
@@ -34,12 +45,12 @@ export class AuthService {
     return labels[businessType] ?? labels.OTHER;
   }
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) throw new UnauthorizedException('Credenciales inválidas');
     return this.session(user);
   }
   async createMember(tenantId: string, clinicId: string, input: { name: string; email: string; password: string; role: UserRole }) {
-    const email = input.email.toLowerCase();
+    const email = input.email.trim().toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('El correo ya está en uso');
     return this.prisma.user.create({ data: { tenantId, clinicId, name: input.name, email, passwordHash: await bcrypt.hash(input.password, 12), role: input.role }, select: { id: true, name: true, email: true, role: true, createdAt: true } });
   }
