@@ -4,6 +4,8 @@ import { EditPopover } from './edit-popover';
 
 export type WorkspaceView = 'Asistente' | 'Citas' | 'Pacientes' | 'Profesionales' | 'Servicios' | 'Tratamientos' | 'Seguimiento' | 'Horarios';
 
+export type WorkspaceDestination = WorkspaceView | `page:${string}`;
+
 const icons: Record<WorkspaceView | 'Salir' | 'Ubicación' | 'Editar', ReactNode> = {
   Asistente: <><path d="m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3L12 3Z" /><path d="m20 3 .5 1.5L22 5l-1.5.5L20 7l-.5-1.5L18 5l1.5-.5L20 3Z" /></>,
   Citas: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18m-13 4h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01" /></>,
@@ -23,15 +25,15 @@ function NavigationIcon({ name }: { name: keyof typeof icons }) {
 }
 
 type Props = {
-  items: { view: WorkspaceView; label: string }[];
-  active: WorkspaceView;
-  homeView?: WorkspaceView;
+  items: { view: WorkspaceDestination; label: string }[];
+  active?: WorkspaceDestination;
+  homeView?: WorkspaceDestination;
   developmentPanel?: ReactNode;
   date: string;
   isToday: boolean;
   address: string;
   onSaveAddress: (address: string) => Promise<void>;
-  onSelect: (view: WorkspaceView) => void;
+  onSelect: (view: WorkspaceDestination) => void;
   onLogout: () => void;
 };
 
@@ -86,12 +88,12 @@ export function DashboardNavigation({ items, active, homeView = 'Asistente', dev
         <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>
       </header>
       {developmentPanel}
-      <nav className={items.length === 6 ? "workspace-nav workspace-nav-six" : "workspace-nav"} aria-label="Navegación principal">
+      <nav className={items.length === 8 ? 'workspace-nav' : items.length === 6 ? 'workspace-nav workspace-nav-six' : 'workspace-nav workspace-nav-custom'} aria-label="Navegación principal">
         {items.map(({ view, label }) => <button
           key={view} type="button" className={'workspace-nav-card' + (active === view ? ' is-active' : '')}
           aria-current={active === view ? 'page' : undefined} onClick={() => onSelect(view)}
         >
-          <span className="workspace-nav-icon"><NavigationIcon name={view} /></span>
+          <span className="workspace-nav-icon">{view.startsWith('page:') ? <NavigationIcon name="Tratamientos" /> : <NavigationIcon name={view as WorkspaceView} />}</span>
           <span className="workspace-nav-label">{label}</span>
           {active === view && <span className="workspace-nav-indicator" aria-hidden="true" />}
         </button>)}

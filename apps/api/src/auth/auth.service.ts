@@ -54,8 +54,8 @@ export class AuthService {
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('El correo ya está en uso');
     return this.prisma.user.create({ data: { tenantId, clinicId, name: input.name, email, passwordHash: await bcrypt.hash(input.password, 12), role: input.role }, select: { id: true, name: true, email: true, role: true, createdAt: true } });
   }
-  private session(user: { id: string; tenantId: string; clinicId: string | null; email: string; name: string; role: string; isDeveloper?: boolean }) {
+  private session(user: { id: string; tenantId: string; clinicId: string | null; email: string; name: string; role: string; isDeveloper?: boolean; isPlatformAdmin?: boolean }) {
     const payload = { sub: user.id, tenantId: user.tenantId, clinicId: user.clinicId, role: user.role };
-    return { accessToken: this.jwt.sign(payload), user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, clinicId: user.clinicId, role: user.role, isDeveloper: Boolean(user.isDeveloper) } };
+    return { accessToken: this.jwt.sign(payload), user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, clinicId: user.clinicId, role: user.role, isDeveloper: Boolean(user.isDeveloper), ...(user.isPlatformAdmin ? { isPlatformAdmin: true } : {}) } };
   }
 }

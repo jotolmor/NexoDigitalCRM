@@ -10,6 +10,8 @@ import { AppointmentOverview } from './appointment-overview';
 import { reminderLinks } from './appointment-reminder';
 import { clinicDateKey } from './overview-data';
 import { useAssistantConversation, clearAssistantConversations } from './assistant-conversation';
+import { builtInSections, CustomPageContent, PlatformPanel, type WorkspacePages } from './platform-pages';
+import type { WorkspaceDestination } from './dashboard-navigation';
 import { Access, type Session } from './access-pages';
 import { DashboardNavigation, type WorkspaceView } from './dashboard-navigation';
 import { PatientCreateForm, patientFields } from './patient-create-form';
@@ -104,23 +106,41 @@ function AssistantPage({ session }: { session: Session }) {
 }
 
 function Dashboard({ session, logout, onSession }: { session: Session; logout: () => void; onSession: (session: Session) => void }) {
-  const [view, setView] = useState<View>('Asistente');
+  const [view, setView] = useState<WorkspaceDestination>('Asistente');
   const qc = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const clinic = useQuery({ queryKey: ['clinic'], queryFn: () => request('/clinic/me', session.accessToken) });
+  const clinic = useQuery({ queryKey: ['clinic'], enabled: !session.user.isPlatformAdmin, queryFn: () => request('/clinic/me', session.accessToken) });
+  if (session.user.isPlatformAdmin) {
+    return <main className="shell workspace-shell"><header className="panel"><h1>Administración de plataforma</h1>
+      <button type="button" onClick={logout}>Cerrar sesión</button></header>
+      <PlatformPanel request={(path, body, method) => request(path, session.accessToken, body, method)} />
+    </main>;
+  }
+
   if (clinic.isLoading) return <main className="center">Cargando tu clínica…</main>;
   if (clinic.isError || !clinic.data) return <main className="center"><section className="load-error"><div className="brand" role="img" aria-label="CrmNexodigitalAssist"><img className="crm-logo crm-logo-light" src="/branding/crm-nexodigital-assist-light.svg" alt="" aria-hidden="true" width="272" height="92"/><img className="crm-logo crm-logo-dark" src="/branding/crm-nexodigital-assist-dark.svg" alt="" aria-hidden="true" width="272" height="92"/></div><h1>No se pudo cargar la clínica</h1><p>La API no respondió correctamente. Comprueba tu conexión e inténtalo de nuevo.</p><button className="primary" onClick={() => { void clinic.refetch(); }}>Reintentar</button><button className="link" onClick={logout}>Volver a iniciar sesión</button></section></main>;
   const timezone = clinic.data.timezone ?? 'Europe/Madrid';
   const today = clinicDateKey(new Date(), timezone);
   const overviewDate = selectedDate ?? today;
   const appointmentsEnabled = sectorHasAppointments(clinic.data.businessType);
-  const activeView: View = !appointmentsEnabled && (view === 'Citas' || view === 'Asistente') ? 'Pacientes' : view;
+  const terms: Terminology = { ...clinicTerminology, ...(clinic.data.terminology ?? {}) }; const nav = builtInSections.filter(section => appointmentsEnabled || (section !== 'Asistente' && section !== 'Citas')); const navLabel: Record<View, string> = { Asistente: 'Asistente', Citas: 'Citas', Pacientes: customerText('Pacientes', clinic.data.businessType), Profesionales: terms.professionals[0].toUpperCase() + terms.professionals.slice(1), Servicios: terms.services[0].toUpperCase() + terms.services.slice(1), Tratamientos: 'Tratamientos', Seguimiento: 'Seguimiento', Horarios: 'Turnos de profesionales' };
+  const configuration: WorkspacePages | null | undefined = clinic.data.workspacePages;
+  const sections = configuration?.sections ?? [];
+  const configured = sections.filter(section => nav.includes(section.id));
+  const pages = (configuration?.pages ?? []).filter(page => page.visible);
+  const items: { view: WorkspaceDestination; label: string }[] = [
+    ...configured.filter(section => section.visible).map(section => ({ view: section.id, label: section.title || navLabel[section.id] })),
+    ...nav.filter(section => !configured.some(item => item.id === section)).map(section => ({ view: section, label: navLabel[section] })),
+    ...pages.map(page => ({ view: `page:${page.id}` as const, label: page.title })),
+  ];
+  const activeView = items.find(item => item.view === view)?.view ?? items[0]?.view;
+  const activeSection = nav.find(section => section === activeView);
+  const customPage = pages.find(page => `page:${page.id}` === activeView);
   const headerDate = activeView === 'Citas' ? overviewDate : today;
-  const terms: Terminology = { ...clinicTerminology, ...(clinic.data.terminology ?? {}) }; const nav: View[] = appointmentsEnabled ? ['Asistente','Citas','Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Horarios'] : ['Pacientes','Profesionales','Servicios','Tratamientos','Seguimiento','Horarios']; const navLabel: Record<View, string> = { Asistente: 'Asistente', Citas: 'Citas', Pacientes: customerText('Pacientes', clinic.data.businessType), Profesionales: terms.professionals[0].toUpperCase() + terms.professionals.slice(1), Servicios: terms.services[0].toUpperCase() + terms.services.slice(1), Tratamientos: 'Tratamientos', Seguimiento: 'Seguimiento', Horarios: 'Turnos de profesionales' };
-  return <CustomerTerminologyProvider businessType={clinic.data.businessType}><div className="shell workspace-shell"><DashboardNavigation developmentPanel={session.user.isDeveloper ? <DevelopmentBusinesses session={session} load={path => request(path, session.accessToken)} write={(path, body) => request(path, session.accessToken, body)} onSession={onSession} /> : undefined} items={nav.map(view => ({ view, label: navLabel[view] }))} active={activeView} homeView={appointmentsEnabled ? 'Asistente' : 'Pacientes'} date={headerDate} isToday={headerDate === today} address={String(clinic.data.address ?? '')} onSaveAddress={async address => {
+  return <CustomerTerminologyProvider businessType={clinic.data.businessType}><div className="shell workspace-shell"><DashboardNavigation developmentPanel={session.user.isDeveloper ? <DevelopmentBusinesses session={session} load={path => request(path, session.accessToken)} write={(path, body) => request(path, session.accessToken, body)} onSession={onSession} /> : undefined} items={items} active={activeView} homeView={items[0]?.view} date={headerDate} isToday={headerDate === today} address={String(clinic.data.address ?? '')} onSaveAddress={async address => {
     await request('/clinic/me', session.accessToken, { address }, 'PATCH');
     await Promise.all([qc.invalidateQueries({ queryKey: ['clinic'] }), qc.invalidateQueries({ queryKey: ['clinic-me'] })]);
-  }} onSelect={setView} onLogout={logout} /><main id="workspace-content" tabIndex={-1}>{activeView === 'Asistente' ? <AssistantPage session={session} /> : activeView === 'Citas' ? <><h1 className="workspace-visually-hidden">Citas</h1><Agenda session={session} calendar={<AppointmentOverview session={session} timezone={timezone} selectedDate={overviewDate} onSelectDate={setSelectedDate} load={path => request(path, session.accessToken)} />} /></> : activeView === 'Tratamientos' ? <TreatmentDurations session={session} /> : activeView === 'Seguimiento' ? <PatientFollowUpSearch scope={[session.user.tenantId, session.user.clinicId ?? '', session.user.id]} load={path => request(path, session.accessToken)} update={(path, body) => request(path, session.accessToken, body, 'PATCH')} /> : activeView === 'Horarios' ? <ProfessionalShifts session={session} timezone={timezone} load={path => request(path, session.accessToken)} write={(path, body, patch) => request(path, session.accessToken, body, patch ? 'PATCH' : undefined)} /> : <Directory key={activeView} session={session} view={activeView} />}</main></div></CustomerTerminologyProvider>;
+  }} onSelect={setView} onLogout={logout} /><main id="workspace-content" tabIndex={-1}>{customPage ? <CustomPageContent page={customPage} /> : activeSection === 'Asistente' ? <AssistantPage session={session} /> : activeSection === 'Citas' ? <><h1 className="workspace-visually-hidden">Citas</h1><Agenda session={session} calendar={<AppointmentOverview session={session} timezone={timezone} selectedDate={overviewDate} onSelectDate={setSelectedDate} load={path => request(path, session.accessToken)} />} /></> : activeSection === 'Tratamientos' ? <TreatmentDurations session={session} /> : activeSection === 'Seguimiento' ? <PatientFollowUpSearch scope={[session.user.tenantId, session.user.clinicId ?? '', session.user.id]} load={path => request(path, session.accessToken)} update={(path, body) => request(path, session.accessToken, body, 'PATCH')} /> : activeSection === 'Horarios' ? <ProfessionalShifts session={session} timezone={timezone} load={path => request(path, session.accessToken)} write={(path, body, patch) => request(path, session.accessToken, body, patch ? 'PATCH' : undefined)} /> : activeSection ? <Directory key={activeSection} session={session} view={activeSection} /> : <p>No hay secciones disponibles.</p>}</main></div></CustomerTerminologyProvider>;
 }
 function SiteFooter() {
   return <footer className="crm-site-footer"><div className="crm-footer-content">

@@ -78,6 +78,7 @@ model Clinic {
   address   String?
   businessType String @default("CLINIC")
   terminology  Json?
+  workspacePages Json?
   timezone  String   @default("Europe/Madrid")
   createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -202,6 +203,7 @@ model User {
   name         String
   role         UserRole @default(CLINIC_OWNER)
   isDeveloper  Boolean @default(false)
+  isPlatformAdmin Boolean @default(false)
   developmentBusinesses DevelopmentBusiness[]
   createdAt    DateTime @default(now())
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
