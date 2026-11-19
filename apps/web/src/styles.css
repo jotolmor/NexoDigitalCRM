@@ -129,6 +129,8 @@ li span, .empty { color: var(--muted); }
 /* Moderate clinic heading in Overview. */
 .overview-clinic-title{font-size:clamp(1.25rem,2vw,1.5rem);font-weight:650;line-height:1.35;letter-spacing:-.025em;margin:0}
 
+.access-with-platform-link { grid-template-rows: auto 1fr; gap: 16px; }
+.access-platform-link { justify-self: end; font-weight: 650; }
 .access-intro { color: var(--muted); line-height: 1.6; }
 .access-switch { margin: 24px 0 0; font-size: .9rem; line-height: 1.6; text-align: center; }
 .access-switch .link { font-weight: 650; }

@@ -6,6 +6,7 @@ export type Session = {
   user: { id: string; name: string; tenantId: string; clinicId?: string | null; isDeveloper?: boolean; isPlatformAdmin?: boolean };
 };
 type Props = { onSession: (session: Session) => void };
+const platformAccessPath = '/superadministrador';
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 async function authenticate(endpoint: 'login' | 'register', body: Record<string, string>): Promise<Session> {
@@ -20,8 +21,10 @@ async function authenticate(endpoint: 'login' | 'register', body: Record<string,
   return data;
 }
 
-function AccessLayout({ title, intro, children, footer }: { title: string; intro: string; children: ReactNode; footer: ReactNode }) {
-  return <main className="access"><section aria-labelledby="access-title">
+function AccessLayout({ title, intro, children, footer, platformLink = false }: { title: string; intro: string; children: ReactNode; footer: ReactNode; platformLink?: boolean }) {
+  return <main className={platformLink ? "access access-with-platform-link" : "access"}>
+    {platformLink && <a className="link access-platform-link" href={platformAccessPath}>Superadministrador</a>}
+    <section aria-labelledby="access-title">
     <div className="brand" role="img" aria-label="CrmNexodigitalAssist">
       <img className="crm-logo crm-logo-light" src="/branding/crm-nexodigital-assist-light.svg" alt="" aria-hidden="true" width="272" height="92" />
     </div>
@@ -30,7 +33,7 @@ function AccessLayout({ title, intro, children, footer }: { title: string; intro
   </section></main>;
 }
 
-export function LoginPage({ onSession }: Props) {
+export function LoginPage({ onSession, platform = false }: Props & { platform?: boolean }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -40,11 +43,17 @@ export function LoginPage({ onSession }: Props) {
     setMessage(''); setBusy(true);
     try {
       const session = await authenticate('login', { email: String(data.get('email') ?? '').trim(), password: String(data.get('password') ?? '') });
+      if (platform && !session.user.isPlatformAdmin) {
+        setMessage('Esta cuenta no tiene permiso de superadministrador.');
+        return;
+      }
       onSession(session);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo iniciar sesión.'); }
     finally { setBusy(false); }
   }
-  return <AccessLayout title="Iniciar sesión" intro="Accede a tu clínica y continúa donde lo dejaste." footer={<>¿Todavía no tienes cuenta? <a className="link" href="/registro">Crear una cuenta</a></>}>
+  return <AccessLayout title={platform ? 'Acceso de superadministrador' : 'Iniciar sesión'}
+    intro={platform ? 'Crea negocios y configura sus páginas desde el panel de desarrollo.' : 'Accede a tu clínica y continúa donde lo dejaste.'}
+    footer={platform ? <a className="link" href="/registro">Volver al registro</a> : <>¿Todavía no tienes cuenta? <a className="link" href="/registro">Crear una cuenta</a></>}>
     <form onSubmit={submit} aria-busy={busy}>
       <label>Correo electrónico<input name="email" type="email" autoComplete="username" required /></label>
       <label>Contraseña<input name="password" type="password" autoComplete="current-password" required /></label>
@@ -73,7 +82,7 @@ export function RegisterPage({ onSession }: Props) {
     catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo crear la cuenta.'); }
     finally { setBusy(false); }
   }
-  return <AccessLayout title="Crear una cuenta" intro="Registra tu negocio y empieza a organizar tu agenda." footer={<>¿Ya tienes una cuenta? <a className="link" href="/login">Iniciar sesión</a></>}>
+  return <AccessLayout platformLink title="Crear una cuenta" intro="Registra tu negocio y empieza a organizar tu agenda." footer={<>¿Ya tienes una cuenta? <a className="link" href="/login">Iniciar sesión</a></>}>
     <form onSubmit={submit} aria-busy={busy}>
       <label>Nombre del negocio<input name="clinicName" autoComplete="organization" required minLength={2} /></label>
       <label>Dirección del negocio<input name="address" autoComplete="street-address" placeholder="Calle, número, código postal y localidad" required maxLength={300} /></label>
@@ -99,5 +108,6 @@ export function RegisterPage({ onSession }: Props) {
 export function Access({ onSession }: Props) {
   const complete = (session: Session) => { window.history.replaceState(null, '', '/'); onSession(session); };
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (path === platformAccessPath) return <LoginPage platform onSession={complete} />;
   return path === '/registro' ? <RegisterPage onSession={complete} /> : <LoginPage onSession={complete} />;
 }
