@@ -6,7 +6,7 @@ export type Session = {
   user: { id: string; name: string; tenantId: string; clinicId?: string | null; isDeveloper?: boolean; isPlatformAdmin?: boolean };
 };
 type Props = { onSession: (session: Session) => void };
-const platformAccessPath = '/superadministrador';
+export const platformAccessPath = '/superadministrador';
 const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 async function authenticate(endpoint: 'login' | 'register', body: Record<string, string>): Promise<Session> {
@@ -43,8 +43,8 @@ export function LoginPage({ onSession, platform = false }: Props & { platform?: 
     setMessage(''); setBusy(true);
     try {
       const session = await authenticate('login', { email: String(data.get('email') ?? '').trim(), password: String(data.get('password') ?? '') });
-      if (platform && !session.user.isPlatformAdmin) {
-        setMessage('Esta cuenta no tiene permiso de superadministrador.');
+      if (platform && !session.user.isPlatformAdmin && !session.user.isDeveloper) {
+        setMessage('Esta cuenta no tiene acceso de administración ni de desarrollo.');
         return;
       }
       onSession(session);
@@ -106,8 +106,11 @@ export function RegisterPage({ onSession }: Props) {
 }
 
 export function Access({ onSession }: Props) {
-  const complete = (session: Session) => { window.history.replaceState(null, '', '/'); onSession(session); };
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const complete = (session: Session) => {
+    window.history.replaceState(null, '', path === platformAccessPath ? platformAccessPath : '/');
+    onSession(session);
+  };
   if (path === platformAccessPath) return <LoginPage platform onSession={complete} />;
   return path === '/registro' ? <RegisterPage onSession={complete} /> : <LoginPage onSession={complete} />;
 }

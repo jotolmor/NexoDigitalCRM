@@ -12,7 +12,7 @@ import { clinicDateKey } from './overview-data';
 import { useAssistantConversation, clearAssistantConversations } from './assistant-conversation';
 import { builtInSections, CustomPageContent, PlatformPanel, type WorkspacePages } from './platform-pages';
 import type { WorkspaceDestination } from './dashboard-navigation';
-import { Access, type Session } from './access-pages';
+import { Access, platformAccessPath, type Session } from './access-pages';
 import { DashboardNavigation, type WorkspaceView } from './dashboard-navigation';
 import { PatientCreateForm, patientFields } from './patient-create-form';
 import { patientAgeOnDate } from './patient-demographics';
@@ -149,5 +149,45 @@ function SiteFooter() {
     <a className="crm-footer-contact" href="tel:+34630289699"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a15 15 0 0 1-7-7l2-2-2-5Z" /></svg><span>+34 630 289 699</span></a>
   </div></footer>;
 }
-function App(){const qc=useQueryClient();const [s,setS]=useState<Session|null>(()=>{const x=localStorage.getItem('nexoclinic-session');return x?JSON.parse(x):null});const set=(x:Session)=>{void qc.cancelQueries();qc.clear();clearAssistantConversations();localStorage.setItem('nexoclinic-session',JSON.stringify(x));setS(x)};useEffect(()=>{const expire=()=>{void qc.cancelQueries();qc.clear();clearAssistantConversations();localStorage.removeItem('nexoclinic-session');setS(null)};window.addEventListener('nexoclinic:session-expired',expire);return()=>window.removeEventListener('nexoclinic:session-expired',expire)},[]);return <div className="crm-app-frame">{s?<Dashboard key={s.user.tenantId+':'+s.user.clinicId} session={s} onSession={set} logout={()=>{void qc.cancelQueries();qc.clear();clearAssistantConversations();localStorage.removeItem('nexoclinic-session');setS(null)}}/>:<Access onSession={set}/>}<SiteFooter /></div>};
+function App() {
+  const qc = useQueryClient();
+  const [session, setSession] = useState<Session | null>(() => {
+    const stored = localStorage.getItem('nexoclinic-session');
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  function updateSession(next: Session | null) {
+    void qc.cancelQueries();
+    qc.clear();
+    clearAssistantConversations();
+    if (next) localStorage.setItem('nexoclinic-session', JSON.stringify(next));
+    else localStorage.removeItem('nexoclinic-session');
+    setSession(next);
+  }
+
+  useEffect(() => {
+    const expire = () => updateSession(null);
+    window.addEventListener('nexoclinic:session-expired', expire);
+    return () => window.removeEventListener('nexoclinic:session-expired', expire);
+  }, [qc]);
+
+  const path = window.location.pathname.replace(/\/+$/, '');
+  const platformRoute = path === platformAccessPath;
+  let content;
+  if (platformRoute && session && (session.user.isPlatformAdmin || session.user.isDeveloper)) {
+    const development = !session.user.isPlatformAdmin;
+    content = <main className="shell workspace-shell">
+      <header className="panel">
+        <h1>{development ? 'Administración de desarrollo' : 'Administración de plataforma'}</h1>
+        <button type="button" onClick={() => updateSession(null)}>Cerrar sesión</button>
+      </header>
+      <PlatformPanel development={development} request={(path, body, method) => request(path, session.accessToken, body, method)} />
+    </main>;
+  } else if (!platformRoute && path !== '/registro' && session) {
+    content = <Dashboard key={session.user.tenantId + ':' + session.user.clinicId} session={session} onSession={updateSession} logout={() => updateSession(null)} />;
+  } else {
+    content = <Access onSession={updateSession} />;
+  }
+  return <div className="crm-app-frame">{content}<SiteFooter /></div>;
+}
 createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={new QueryClient()}><App/></QueryClientProvider></React.StrictMode>);

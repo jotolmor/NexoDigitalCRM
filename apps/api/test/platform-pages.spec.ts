@@ -6,10 +6,10 @@ import { PrismaService } from '../src/prisma.service';
 const session = { sub: 'user', tenantId: 'own', clinicId: 'own-clinic', role: 'CLINIC_OWNER' };
 const layout = { sections: [{ id: 'Citas', title: ' Reservas ', visible: false }], pages: [] };
 
-function setup(isPlatformAdmin: boolean) {
+function setup(isPlatformAdmin: boolean, isDeveloper = false) {
   const prisma = {
-    user: { findUnique: jest.fn().mockResolvedValue({ isPlatformAdmin }) },
-    clinic: { findMany: jest.fn(), update: jest.fn(), findUniqueOrThrow: jest.fn() },
+    user: { findUnique: jest.fn().mockResolvedValue({ isPlatformAdmin, isDeveloper, id: session.sub, role: session.role }) },
+    clinic: { findMany: jest.fn(), update: jest.fn().mockResolvedValue({}), findUniqueOrThrow: jest.fn() },
   };
   const auth = { register: jest.fn().mockResolvedValue({ user: { clinicId: 'new-clinic' } }) };
   const controller = new PlatformController(prisma as unknown as PrismaService, auth as unknown as AuthService);
@@ -34,6 +34,17 @@ describe('platform business pages', () => {
       where: { id: 'other-clinic' },
       data: { workspacePages: { sections: [{ id: 'Citas', title: 'Reservas', visible: false }], pages: [] } },
     }));
+  });
+
+  it('scopes development reads and writes to the authenticated developer’s businesses', async () => {
+    const { controller, prisma, auth } = setup(false, true);
+    const membership = { developmentBusiness: { is: { developerUserId: session.sub } } };
+    await controller.list({ user: session });
+    expect(prisma.clinic.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: membership }));
+    await controller.updatePages({ user: session }, 'managed-clinic', layout);
+    expect(prisma.clinic.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'managed-clinic', ...membership } }));
+    await expect(controller.create({ user: session }, {} as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(auth.register).not.toHaveBeenCalled();
   });
 
   it('rejects duplicate sections and blocks without content objects', async () => {

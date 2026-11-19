@@ -91,12 +91,18 @@ function WorkspaceEditor({ business, request }: { business: Business; request: R
   </form>;
 }
 
-export function PlatformPanel({ request }: { request: Request }) {
+export function PlatformPanel({ request, development = false }: { request: Request; development?: boolean }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState('');
   const businesses = useQuery<Business[]>({ queryKey: ['platform-businesses'], queryFn: () => request(endpoint) });
   const create = useMutation({
-    mutationFn: (data: Record<string, FormDataEntryValue>) => request(endpoint, data),
+    mutationFn: async (data: Record<string, FormDataEntryValue>) => {
+      if (!development) return request(endpoint, data);
+      const session = await request('/development/businesses', {
+        name: data.clinicName, businessType: data.businessType, specialty: data.specialty, address: data.address,
+      });
+      return { id: session.user.clinicId };
+    },
     onSuccess: async (business: Business) => {
       await qc.invalidateQueries({ queryKey: ['platform-businesses'] });
       setSelected(business.id);
@@ -113,14 +119,14 @@ export function PlatformPanel({ request }: { request: Request }) {
     <form className="panel platform-form" onSubmit={createBusiness}>
       <h2>Crear negocio</h2>
       <fieldset disabled={create.isPending} className="platform-row">
-        <legend>Negocio y cuenta propietaria</legend>
+        <legend>{development ? 'Datos del negocio de desarrollo' : 'Negocio y cuenta propietaria'}</legend>
         <label>Nombre del negocio<input name="clinicName" required minLength={2} maxLength={120} /></label>
         <label>Sector<select name="businessType">{registrationSectors.map(sector => <option key={sector.value} value={sector.value}>{sector.label}</option>)}</select></label>
         <label>Actividad<input name="specialty" required maxLength={150} /></label>
         <label>Dirección<input name="address" maxLength={300} /></label>
-        <label>Nombre del propietario<input name="name" required minLength={2} maxLength={120} /></label>
+        {!development && <><label>Nombre del propietario<input name="name" required minLength={2} maxLength={120} /></label>
         <label>Correo del propietario<input name="email" required type="email" /></label>
-        <label>Contraseña inicial<input name="password" required type="password" minLength={12} autoComplete="new-password" /></label>
+        <label>Contraseña inicial<input name="password" required type="password" minLength={12} autoComplete="new-password" /></label></>}
       </fieldset>
       <button className="primary" disabled={create.isPending}>Crear negocio</button>
       {create.error && <p className="error" role="alert">{create.error.message}</p>}
