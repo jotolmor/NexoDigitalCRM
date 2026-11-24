@@ -1,6 +1,8 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { BadGatewayException, ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { AppointmentStatus } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { ClaudeGateway, REFUSAL_ANSWER, answerText, toolUses } from '../ai/claude.gateway';
 import { SessionUser, requireClinic, requireWriter } from '../common/access';
 import { PrismaService } from '../prisma.service';
 
@@ -9,61 +11,49 @@ type PendingAppointmentAction =
   | { kind: 'reschedule'; appointmentId: string; professionalId: string; serviceId: string; startsAt: string; endsAt: string; summary: string }
   | { kind: 'cancel'; appointmentId: string; summary: string };
 
-const tools = [
-  { type: 'function', function: { name: 'search_clinic', description: 'Consulta los registros reales de pacientes, profesionales, tratamientos o citas de esta clínica. Usa nombres exactos cuando haya homónimos.', parameters: { type: 'object', properties: { category: { type: 'string', enum: ['patients', 'professionals', 'services', 'appointments'] }, search: { type: 'string', description: 'Nombre o término de búsqueda' } }, required: ['category'], additionalProperties: false } } },
-  { type: 'function', function: { name: 'find_open_slots', description: 'Busca disponibilidad real de un profesional para un tratamiento. Devuelve opciones para los próximos 45 días.', parameters: { type: 'object', properties: { professionalId: { type: 'string' }, serviceId: { type: 'string' } }, required: ['professionalId', 'serviceId'], additionalProperties: false } } },
-  { type: 'function', function: { name: 'prepare_booking', description: 'Prepara una nueva reserva para confirmar en la interfaz. Llama solo cuando se conozcan paciente, profesional, tratamiento y hora exacta que está dentro de las opciones disponibles.', parameters: { type: 'object', properties: { patientId: { type: 'string' }, professionalId: { type: 'string' }, serviceId: { type: 'string' }, startsAt: { type: 'string', description: 'Fecha y hora ISO exacta devuelta por find_open_slots' } }, required: ['patientId', 'professionalId', 'serviceId', 'startsAt'], additionalProperties: false } } },
-  { type: 'function', function: { name: 'prepare_reschedule', description: 'Prepara el cambio de fecha/hora de una cita existente. No realiza el cambio hasta que el usuario pulse Confirmar.', parameters: { type: 'object', properties: { appointmentId: { type: 'string' }, startsAt: { type: 'string', description: 'Fecha y hora ISO solicitada' } }, required: ['appointmentId', 'startsAt'], additionalProperties: false } } },
-  { type: 'function', function: { name: 'prepare_cancellation', description: 'Prepara la cancelación de una cita existente. No cancela hasta que el usuario pulse Confirmar.', parameters: { type: 'object', properties: { appointmentId: { type: 'string' } }, required: ['appointmentId'], additionalProperties: false } } }
+const SYSTEM_PROMPT = 'Eres el asistente de agenda de NexoFlow CRM para clínicas dentales en España. Tienes herramientas conectadas a los datos reales de la clínica autenticada. Responde en español. Para buscar citas, pacientes, profesionales, tratamientos y disponibilidad usa las herramientas; nunca inventes registros ni huecos. Si falta un dato, pregunta. Para reservar, cambiar o cancelar una cita prepara una acción y explica al usuario todos sus datos; la acción requiere que pulse el botón de confirmación que aparecerá en la aplicación. Nunca digas que una acción se completó antes de recibir confirmación. No intentes contactar al paciente ni enviar mensajes externos.';
+const FALLBACK_ANSWER = 'He consultado la agenda. Dime qué opción prefieres o concreta los datos que faltan.';
+
+const tools: Anthropic.Beta.BetaTool[] = [
+  { name: 'search_clinic', strict: true, description: 'Consulta los registros reales de pacientes, profesionales, tratamientos o citas de esta clínica. Usa nombres exactos cuando haya homónimos.', input_schema: { type: 'object', properties: { category: { type: 'string', enum: ['patients', 'professionals', 'services', 'appointments'] }, search: { type: 'string', description: 'Nombre o término de búsqueda' } }, required: ['category'], additionalProperties: false } },
+  { name: 'find_open_slots', strict: true, description: 'Busca disponibilidad real de un profesional para un tratamiento. Devuelve opciones para los próximos 45 días.', input_schema: { type: 'object', properties: { professionalId: { type: 'string' }, serviceId: { type: 'string' } }, required: ['professionalId', 'serviceId'], additionalProperties: false } },
+  { name: 'prepare_booking', strict: true, description: 'Prepara una nueva reserva para confirmar en la interfaz. Llama solo cuando se conozcan paciente, profesional, tratamiento y hora exacta que está dentro de las opciones disponibles.', input_schema: { type: 'object', properties: { patientId: { type: 'string' }, professionalId: { type: 'string' }, serviceId: { type: 'string' }, startsAt: { type: 'string', description: 'Fecha y hora ISO exacta devuelta por find_open_slots' } }, required: ['patientId', 'professionalId', 'serviceId', 'startsAt'], additionalProperties: false } },
+  { name: 'prepare_reschedule', strict: true, description: 'Prepara el cambio de fecha/hora de una cita existente. No realiza el cambio hasta que el usuario pulse Confirmar.', input_schema: { type: 'object', properties: { appointmentId: { type: 'string' }, startsAt: { type: 'string', description: 'Fecha y hora ISO solicitada' } }, required: ['appointmentId', 'startsAt'], additionalProperties: false } },
+  { name: 'prepare_cancellation', strict: true, description: 'Prepara la cancelación de una cita existente. No cancela hasta que el usuario pulse Confirmar.', input_schema: { type: 'object', properties: { appointmentId: { type: 'string' } }, required: ['appointmentId'], additionalProperties: false } }
 ];
 
 @Injectable()
 export class AssistantService {
-  constructor(private prisma: PrismaService, private appointments: AppointmentsService) {}
+  constructor(private prisma: PrismaService, private appointments: AppointmentsService, private claude: ClaudeGateway) {}
 
   async ask(user: SessionUser, question: string, history: { role: 'user' | 'assistant'; content: string }[] = []) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new ServiceUnavailableException('El asistente aún no está conectado. Configura OPENAI_API_KEY en Render.');
+    if (!this.claude.isConfigured()) throw new ServiceUnavailableException('El asistente aún no está conectado. Configura ANTHROPIC_API_KEY en el servidor.');
     const safeHistory = (Array.isArray(history) ? history : []).filter(item => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string').slice(-10).map(item => ({ role: item.role, content: item.content.slice(0, 1200) }));
-    const messages: any[] = [
-      { role: 'system', content: 'Eres el asistente de agenda de NexoFlow CRM para clínicas dentales en España. Tienes herramientas conectadas a los datos reales de la clínica autenticada. Responde en español. Para buscar citas, pacientes, profesionales, tratamientos y disponibilidad usa las herramientas; nunca inventes registros ni huecos. Si falta un dato, pregunta. Para reservar, cambiar o cancelar una cita prepara una acción y explica al usuario todos sus datos; la acción requiere que pulse el botón de confirmación que aparecerá en la aplicación. Nunca digas que una acción se completó antes de recibir confirmación. No intentes contactar al paciente ni enviar mensajes externos.' },
-      ...safeHistory,
-      { role: 'user', content: question }
-    ];
+    const messages: Anthropic.Beta.BetaMessageParam[] = [...safeHistory, { role: 'user', content: question }];
     let pendingAction: PendingAppointmentAction | null = null;
     for (let turn = 0; turn < 4; turn++) {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', messages, tools, tool_choice: 'auto', temperature: 0.2, max_tokens: 700 })
-      });
-      if (!response.ok) {
-        if (response.status === 401) throw new ServiceUnavailableException('La clave de OpenAI configurada en Render no es válida.');
-        if (response.status === 429) throw new ServiceUnavailableException('OpenAI ha alcanzado su límite o necesita crédito. Revisa el uso y la facturación de la cuenta.');
-        throw new BadGatewayException('No se pudo obtener una respuesta de OpenAI. Inténtalo de nuevo.');
+      const response = await this.claude.create({ system: SYSTEM_PROMPT, messages, tools });
+      if (response.stop_reason === 'refusal') return { answer: REFUSAL_ANSWER, pendingAction: null };
+      if (response.stop_reason !== 'tool_use') {
+        const answer = answerText(response);
+        if (answer) return { answer, pendingAction };
+        if (response.stop_reason === 'max_tokens') return { answer: FALLBACK_ANSWER, pendingAction };
+        throw new BadGatewayException('La IA devolvió una respuesta vacía.');
       }
-      const result = await response.json() as any;
-      const message = result.choices?.[0]?.message;
-      if (!message) throw new BadGatewayException('OpenAI devolvió una respuesta vacía.');
-      if (!message.tool_calls?.length) {
-        const answer = String(message.content ?? '').trim();
-        if (!answer) throw new BadGatewayException('OpenAI devolvió una respuesta vacía.');
-        return { answer, pendingAction };
-      }
-      messages.push(message);
-      for (const call of message.tool_calls) {
-        let output: unknown;
+      messages.push({ role: 'assistant', content: response.content });
+      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+      for (const call of toolUses(response)) {
         try {
-          const args = JSON.parse(call.function.arguments || '{}');
-          const execution = await this.executeTool(user, call.function.name, args, Boolean(pendingAction));
-          output = execution?.result ?? execution;
+          const execution = await this.executeTool(user, call.name, call.input ?? {}, Boolean(pendingAction));
           if (execution.action) pendingAction = execution.action;
+          results.push({ type: 'tool_result', tool_use_id: call.id, content: JSON.stringify(execution?.result ?? execution) });
         } catch (error) {
-          output = { error: error instanceof Error ? error.message : 'No se pudo consultar la agenda.' };
+          results.push({ type: 'tool_result', tool_use_id: call.id, is_error: true, content: JSON.stringify({ error: error instanceof Error ? error.message : 'No se pudo consultar la agenda.' }) });
         }
-        messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(output) });
       }
+      messages.push({ role: 'user', content: results });
     }
-    return { answer: 'He consultado la agenda. Dime qué opción prefieres o concreta los datos que faltan.', pendingAction };
+    return { answer: FALLBACK_ANSWER, pendingAction };
   }
 
   async confirm(user: SessionUser, raw: unknown) {
