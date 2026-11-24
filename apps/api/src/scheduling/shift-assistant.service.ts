@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { BadGatewayException, ConflictException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { ClaudeGateway, REFUSAL_ANSWER, answerText, toolUses } from '../ai/claude.gateway';
+import { ClaudeGateway, REFUSAL_ANSWER, answerText, safeHistory, toolUses } from '../ai/claude.gateway';
 import { PrismaService } from '../prisma.service';
 import { SessionUser, requireClinic, requireWriter } from '../common/access';
 import { SchedulingService } from './scheduling.service';
@@ -34,7 +34,7 @@ export class ShiftAssistantService {
     const context = `Contexto actual: hoy es ${today}, instante ${now.toISOString()}, zona ${timezone}. Profesional seleccionado: ${selectedProfessionalId || 'ninguno'}; confirma su nombre con herramientas.`;
     const system = `Eres Nexo IA, asistente de turnos de profesionales. El último mensaje del usuario incluye la fecha, la zona horaria y el profesional seleccionado. Los minutos representan horas locales, nunca UTC. Responde en español. Usa herramientas para consultar profesionales y turnos, nunca inventes IDs ni asignaciones. Pregunta por datos ambiguos o ausentes, incluidas fechas de vigencia; no deduzcas un profesional homónimo. Solo prepara cambios cuando el usuario lo ordene. Las herramientas no guardan: el usuario debe pulsar Confirmar cambios. No afirmes que guardaste antes de la confirmación. No modifiques citas, pacientes ni datos externos. Respeta turnos de lunes a viernes: inicio por horas 09:00 a 13:00 o 16:00 a 20:00; final cada 15 minutos hasta 14:00 o 21:00; duración máxima 5 horas. Para jornadas con mañana y tarde prepara dos turnos por día. Revisa los turnos actuales antes de proponer modificaciones o retiradas. Si dos compañeros quieren intercambiar turnos, consulta los turnos de ambos y usa prepare_shift_swap: puede intercambiar días y horas diferentes y guarda ambos cambios juntos. No rechaces el intercambio por las citas existentes: las citas y sus profesionales no se modifican. Si sólo desean un día o periodo concreto, pide precisión antes de intercambiar una regla completa. No supongas que los compañeros están de acuerdo; la interfaz exige que el usuario confirme su acuerdo antes de guardar. Para cambios personalizados entre varios profesionales usa una única llamada prepare_shift_changes con todos los cambios, nunca llamadas separadas. Muestra únicamente profesionales y cambios disponibles; no listes cambios descartados ni mensajes técnicos de conflictos. Si hay alternativas, ofrece sólo las devueltas por las herramientas y espera a que el usuario elija antes de preparar otro horario.`;
     const messages: Anthropic.Beta.BetaMessageParam[] = [
-      ...(Array.isArray(history) ? history : []).filter(item => item && ['user', 'assistant'].includes(item.role) && typeof item.content === 'string').slice(-24).map(item => ({ role: item.role as 'user' | 'assistant', content: item.content.slice(0, 2000) })),
+      ...safeHistory(history, 24, 2000),
       { role: 'user', content: [{ type: 'text', text: question }, { type: 'text', text: context }] }];
     let pendingAction: { proposalId: string; summaries: string[]; expiresAt: string; requiresAgreement: boolean } | null = null;
     for (let turn = 0; turn < 8; turn++) {

@@ -81,4 +81,12 @@ describe('Appointment assistant on Claude', () => {
     expect(messages.map((message: any) => message.role)).toEqual(['user', 'user']);
     expect(messages[0].content).toBe('Hola');
   });
+  it('never sends a history that starts with an assistant turn after a confirmation', async () => {
+    const { service, claude } = setup();
+    claude.create.mockResolvedValueOnce(text('Hola.'));
+    const history: any[] = [{ role: 'user', content: 'Reserva' }, { role: 'assistant', content: 'Preparada' }, { role: 'assistant', content: 'Cita reservada' }];
+    for (let i = 0; i < 4; i++) history.push({ role: 'user', content: 'q' + i }, { role: 'assistant', content: 'r' + i });
+    await service.ask(user, 'Otra pregunta', history);
+    expect(claude.create.mock.calls[0][0].messages[0].role).toBe('user');
+  });
 });

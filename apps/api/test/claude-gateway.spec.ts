@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common';
-import { ClaudeGateway, answerText } from '../src/ai/claude.gateway';
+import { Logger } from '@nestjs/common';
+import { ClaudeGateway, answerText, safeHistory } from '../src/ai/claude.gateway';
 
 const originalKey = process.env.ANTHROPIC_API_KEY, originalModel = process.env.ANTHROPIC_MODEL;
 class TestGateway extends ClaudeGateway {
@@ -59,5 +60,22 @@ describe('ClaudeGateway', () => {
   it('answerText joins text blocks only', () => {
     const message = { content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: ' Hola ' }, { type: 'text', text: 'mundo' }] } as any;
     expect(answerText(message)).toBe('Hola\nmundo');
+  });
+  it('logs provider errors before mapping them', async () => {
+    const gateway = new TestGateway();
+    const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const failure = Object.assign(sdkError(Anthropic.BadRequestError), { status: 400, message: 'invalid schema', requestID: 'req_1' });
+    gateway.create$.mockRejectedValueOnce(failure);
+    await expect(gateway.create(turn)).rejects.toBeInstanceOf(BadGatewayException);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('400'));
+    expect(log.mock.calls[0][0]).toContain('req_1');
+    log.mockRestore();
+  });
+
+  it('safeHistory starts with a user turn and drops invalid or empty entries', () => {
+    const history: any[] = [{ role: 'user', content: 'u1' }, { role: 'assistant', content: 'a1' }, { role: 'assistant', content: 'Cita reservada' }, { role: 'system', content: 'x' }, { role: 'user', content: '   ' }, { role: 'assistant', content: 7 }, { role: 'user', content: 'u2' }, { role: 'assistant', content: 'a2' }];
+    expect(safeHistory(history, 3, 100)).toEqual([{ role: 'user', content: 'u2' }, { role: 'assistant', content: 'a2' }]);
+    expect(safeHistory(history, 10, 1)).toEqual([{ role: 'user', content: 'u' }, { role: 'assistant', content: 'a' }, { role: 'assistant', content: 'C' }, { role: 'user', content: 'u' }, { role: 'assistant', content: 'a' }]);
+    expect(safeHistory('nope' as any, 10, 100)).toEqual([]);
   });
 });

@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { BadGatewayException, ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { AppointmentStatus } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
-import { ClaudeGateway, REFUSAL_ANSWER, answerText, toolUses } from '../ai/claude.gateway';
+import { ClaudeGateway, REFUSAL_ANSWER, answerText, safeHistory, toolUses } from '../ai/claude.gateway';
 import { SessionUser, requireClinic, requireWriter } from '../common/access';
 import { PrismaService } from '../prisma.service';
 
@@ -28,8 +28,7 @@ export class AssistantService {
 
   async ask(user: SessionUser, question: string, history: { role: 'user' | 'assistant'; content: string }[] = []) {
     if (!this.claude.isConfigured()) throw new ServiceUnavailableException('El asistente aún no está conectado. Configura ANTHROPIC_API_KEY en el servidor.');
-    const safeHistory = (Array.isArray(history) ? history : []).filter(item => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string').slice(-10).map(item => ({ role: item.role, content: item.content.slice(0, 1200) }));
-    const messages: Anthropic.Beta.BetaMessageParam[] = [...safeHistory, { role: 'user', content: question }];
+    const messages: Anthropic.Beta.BetaMessageParam[] = [...safeHistory(history, 10, 1200), { role: 'user', content: question }];
     let pendingAction: PendingAppointmentAction | null = null;
     for (let turn = 0; turn < 4; turn++) {
       const response = await this.claude.create({ system: SYSTEM_PROMPT, messages, tools });
