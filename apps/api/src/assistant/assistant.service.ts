@@ -11,7 +11,7 @@ type PendingAppointmentAction =
   | { kind: 'reschedule'; appointmentId: string; professionalId: string; serviceId: string; startsAt: string; endsAt: string; summary: string }
   | { kind: 'cancel'; appointmentId: string; summary: string };
 
-const SYSTEM_PROMPT = 'Eres el asistente de agenda de NexoFlow CRM para clínicas dentales en España. Tienes herramientas conectadas a los datos reales de la clínica autenticada. Responde en español. Para buscar citas, pacientes, profesionales, tratamientos y disponibilidad usa las herramientas; nunca inventes registros ni huecos. Si falta un dato, pregunta. Para reservar, cambiar o cancelar una cita prepara una acción y explica al usuario todos sus datos; la acción requiere que pulse el botón de confirmación que aparecerá en la aplicación. Nunca digas que una acción se completó antes de recibir confirmación. No intentes contactar al paciente ni enviar mensajes externos.';
+const SYSTEM_PROMPT = 'Eres el asistente de agenda de NexoFlow CRM para clínicas dentales en España. Tienes herramientas conectadas a los datos reales de la clínica autenticada. El último mensaje del usuario incluye la fecha y la hora actuales en la zona horaria de la clínica; úsalas para interpretar «hoy», «mañana» o «esta semana». Responde en español. Para buscar citas, pacientes, profesionales, tratamientos y disponibilidad usa las herramientas; nunca inventes registros ni huecos. Si falta un dato, pregunta. Para reservar, cambiar o cancelar una cita prepara una acción y explica al usuario todos sus datos; la acción requiere que pulse el botón de confirmación que aparecerá en la aplicación. Nunca digas que una acción se completó antes de recibir confirmación. No intentes contactar al paciente ni enviar mensajes externos.';
 const FALLBACK_ANSWER = 'He consultado la agenda. Dime qué opción prefieres o concreta los datos que faltan.';
 
 const tools: Anthropic.Beta.BetaTool[] = [
@@ -28,7 +28,15 @@ export class AssistantService {
 
   async ask(user: SessionUser, question: string, history: { role: 'user' | 'assistant'; content: string }[] = []) {
     if (!this.claude.isConfigured()) throw new ServiceUnavailableException('El asistente aún no está conectado. Configura ANTHROPIC_API_KEY en el servidor.');
-    const messages: Anthropic.Beta.BetaMessageParam[] = [...safeHistory(history, 10, 1200), { role: 'user', content: question }];
+    const clinicId = requireClinic(user);
+    const clinic = await this.prisma.clinic.findFirst({ where: { id: clinicId, tenantId: user.tenantId }, select: { timezone: true } });
+    const timezone = clinic?.timezone ?? 'Europe/Madrid';
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    const weekday = new Intl.DateTimeFormat('es-ES', { timeZone: timezone, weekday: 'long' }).format(now);
+    const time = new Intl.DateTimeFormat('es-ES', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+    const context = `Contexto actual: hoy es ${weekday} ${today}, son las ${time} en la zona ${timezone}.`;
+    const messages: Anthropic.Beta.BetaMessageParam[] = [...safeHistory(history, 10, 1200), { role: 'user', content: [{ type: 'text', text: question }, { type: 'text', text: context }] }];
     let pendingAction: PendingAppointmentAction | null = null;
     for (let turn = 0; turn < 4; turn++) {
       const response = await this.claude.create({ system: SYSTEM_PROMPT, messages, tools });

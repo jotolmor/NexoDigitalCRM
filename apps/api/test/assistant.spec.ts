@@ -13,6 +13,7 @@ function setup() {
     patient: { findFirst: jest.fn().mockResolvedValue({ id: 'pa', firstName: 'Ana', lastName: 'Ruiz' }), findMany: jest.fn().mockResolvedValue([]) },
     professional: { findFirst: jest.fn().mockResolvedValue({ id: 'pr', firstName: 'Clara', lastName: 'Montoro' }) },
     service: { findFirst: jest.fn().mockResolvedValue({ id: 'se', name: 'Limpieza', durationMinutes: 30 }) },
+    clinic: { findFirst: jest.fn().mockResolvedValue({ timezone: 'Europe/Madrid' }) },
   };
   const appointments: any = { availability: jest.fn().mockResolvedValue({ timezone: 'Europe/Madrid', slots: [slot] }), create: jest.fn() };
   const claude: any = { isConfigured: jest.fn().mockReturnValue(true), create: jest.fn() };
@@ -88,5 +89,20 @@ describe('Appointment assistant on Claude', () => {
     for (let i = 0; i < 4; i++) history.push({ role: 'user', content: 'q' + i }, { role: 'assistant', content: 'r' + i });
     await service.ask(user, 'Otra pregunta', history);
     expect(claude.create.mock.calls[0][0].messages[0].role).toBe('user');
+  });
+  it('tells Claude the current date and clinic time zone', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-24T18:00:00Z'));
+    try {
+      const { service, claude } = setup();
+      claude.create.mockResolvedValueOnce(text('Hola.'));
+      await service.ask(user, 'Qué citas hay esta semana');
+      const request = claude.create.mock.calls[0][0];
+      const last = JSON.stringify(request.messages.at(-1));
+      expect(last).toContain('Qué citas hay esta semana');
+      expect(last).toContain('2026-11-24');
+      expect(last).toContain('martes');
+      expect(last).toContain('Europe/Madrid');
+      expect(request.system).not.toContain('2026-11-24');
+    } finally { jest.useRealTimers(); }
   });
 });
