@@ -30,7 +30,7 @@
 
 ---
 
-### Tarea 1: `ClaudeGateway`, dependencia y documentación
+### Task 1: `ClaudeGateway`, dependencia y documentación
 
 **Archivos:**
 - Crear: `apps/api/src/ai/claude.gateway.ts`
@@ -72,7 +72,7 @@ export function toolUses(message: Anthropic.Beta.BetaMessage): Anthropic.Beta.Be
 
 ---
 
-### Tarea 2: asistente de citas con Claude
+### Task 2: asistente de citas con Claude
 
 **Archivos:**
 - Modificar: `apps/api/src/assistant/assistant.service.ts` (constructor, `tools` y `ask`; `confirm` y `executeTool` no cambian)
@@ -109,7 +109,7 @@ export function toolUses(message: Anthropic.Beta.BetaMessage): Anthropic.Beta.Be
 
 ---
 
-### Tarea 3: asistente de turnos con Claude y verificación completa
+### Task 3: asistente de turnos con Claude y verificación completa
 
 **Archivos:**
 - Modificar: `apps/api/src/scheduling/shift-assistant.service.ts` (constructor, `fields`, `tools` y `ask`; `confirm` no cambia)

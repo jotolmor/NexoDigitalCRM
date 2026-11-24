@@ -113,7 +113,7 @@ Los horarios semanales se configuran por trimestre y profesional. Cada tramo se 
 
 ## Asistente OpenAI
 
-La API ofrece `POST /api/assistant/ask` (JWT requerido) para orientación de planificación. Configura `OPENAI_API_KEY` como variable secreta del servicio API en Render; `OPENAI_MODEL` es opcional y por defecto usa `gpt-4o-mini`. No pongas la clave en el frontend, en `.env.example` con un valor real ni en GitHub. El asistente de esta primera integración no consulta la agenda en vivo, no crea reservas y no envía mensajes a pacientes; las reservas siguen pasando por la validación de disponibilidad del CRM.
+La API ofrece `POST /api/assistant/ask` (JWT requerido) con un asistente de citas basado en Claude (Anthropic). Configura `ANTHROPIC_API_KEY` como variable secreta del servicio API en el servidor; `ANTHROPIC_MODEL` es opcional y por defecto usa `claude-sonnet-5-5`. No pongas la clave en el frontend, en `.env.example` con un valor real ni en GitHub. El asistente consulta los datos reales de la clínica y prepara reservas, cambios y cancelaciones, que solo se guardan cuando el usuario pulsa Confirmar (`POST /api/assistant/confirm`) y pasan por la validación de disponibilidad del CRM. No envía mensajes a pacientes.
 
 ## Conexión con n8n
 
