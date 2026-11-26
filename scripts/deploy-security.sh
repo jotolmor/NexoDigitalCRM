@@ -18,10 +18,13 @@ git -C "$nexo_source_root" cat-file -e "${nexo_deploy_ref}^{commit}"
 cd "$nexo_deploy_root"
 nexo_compose=(docker compose -f docker-compose.yml -f api.yml -f web.yml -f public.yml)
 "${nexo_compose[@]}" config --quiet
-# The API now refuses to start without a JWT_SECRET of 32+ characters; check its length, never its value.
-nexo_secret_length="$("${nexo_compose[@]}" config | sed -nE 's/^[[:space:]]+JWT_SECRET: "?([^"]*)"?$/\1/p' | head -1 | tr -d '\n' | wc -c)"
-if (( nexo_secret_length < 32 )); then
-  echo "JWT_SECRET del servicio api tiene ${nexo_secret_length} caracteres; hacen falta 32 o más. Genera una con: openssl rand -hex 32, ponla en el .env de /opt/nexocrm-deploy y vuelve a ejecutar." >&2
+# The API now refuses to start without its own JWT_SECRET of 32+ characters.
+# Measure it as the api container sees it (current image, same environment); never print the value.
+nexo_secret_check="$("${nexo_compose[@]}" run --rm --no-deps -T --entrypoint sh api -c 'case "$JWT_SECRET" in replace-with-a-long-random-secret|development-only-secret-change-before-deployment) echo public;; *) printf %s "$JWT_SECRET" | wc -c;; esac' | tr -d '[:space:]')"
+if [[ "$nexo_secret_check" == public || ! "$nexo_secret_check" =~ ^[0-9]+$ ]] || (( nexo_secret_check < 32 )); then
+  echo "El servicio api no recibe un JWT_SECRET válido (resultado: ${nexo_secret_check:-vacío}); hace falta una clave propia de 32 caracteres o más." >&2
+  echo "1) Genera una con: openssl rand -hex 32  2) Ponla en /opt/nexocrm-deploy/.env como JWT_SECRET=...  3) Comprueba que api.yml pasa JWT_SECRET al servicio api." >&2
+  echo "Al cambiar la clave se cierran todas las sesiones abiertas: cada usuario tendrá que volver a iniciar sesión." >&2
   exit 1
 fi
 
@@ -29,6 +32,7 @@ nexo_files=(
   apps/api/Dockerfile
   apps/web/Dockerfile
   apps/api/src/main.ts
+  apps/api/src/auth/auth.controller.ts
   apps/api/src/auth/auth.module.ts
   apps/api/src/auth/auth.service.ts
   apps/api/src/auth/jwt-auth.guard.ts
@@ -58,13 +62,14 @@ tar -xf "$nexo_deploy_archive" -C "$nexo_source_root"
 # No database migration in this change.
 "${nexo_compose[@]}" build api web
 "${nexo_compose[@]}" up -d --no-deps --force-recreate api web
-for nexo_try in $(seq 1 20); do
-  if curl -fsS https://nexocrm.nexodigitaldesing.com/api/health/ready >/dev/null 2>&1; then echo 'API lista.'; break; fi
-  if (( nexo_try == 20 )); then
-    echo 'La API no responde tras 60 s. Revisa el registro con: docker compose -f docker-compose.yml -f api.yml -f web.yml -f public.yml logs --tail=50 api' >&2
+for nexo_try in {1..30}; do
+  if "${nexo_compose[@]}" exec -T api node -e 'fetch("http://127.0.0.1:"+(process.env.PORT||process.env.API_PORT||3000)+"/api/health/ready",{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))' >/dev/null 2>&1; then echo 'API lista.'; break; fi
+  if (( nexo_try == 30 )); then
+    echo "La API no responde tras 60 s. Copia de las fuentes anteriores: $nexo_source_backup" >&2
+    echo 'Revisa el registro con: docker compose -f docker-compose.yml -f api.yml -f web.yml -f public.yml logs --tail=50 api' >&2
     exit 1
   fi
-  sleep 3
+  sleep 2
 done
 printf 'Actualización completada. Copia de las fuentes anteriores: %s\n' "$nexo_source_backup"
 printf 'Para volver atrás: tar -xzf %s -C %s y repite build/up de api y web.\n' "$nexo_source_backup" "$nexo_source_root"

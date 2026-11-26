@@ -25,10 +25,11 @@ export class JwtAuthGuard implements CanActivate {
       request.user = { sub: account.id, tenantId: account.tenantId, clinicId: account.clinicId, role: account.role };
       return true;
     }
-    if (!account.isDeveloper || !token.clinicId) throw new UnauthorizedException();
+    // Same rule as development.service.ts: only owner developer accounts work inside their development businesses.
+    if (!account.isDeveloper || account.role !== 'CLINIC_OWNER' || !token.clinicId) throw new UnauthorizedException();
     const business = await this.prisma.developmentBusiness.findFirst({ where: { developerUserId: account.id, clinicId: token.clinicId, clinic: { tenantId: token.tenantId } }, select: { id: true } });
     if (!business) throw new UnauthorizedException();
-    request.user = { sub: account.id, tenantId: token.tenantId, clinicId: token.clinicId, role: token.role };
+    request.user = { sub: account.id, tenantId: token.tenantId, clinicId: token.clinicId, role: 'CLINIC_OWNER' };
     return true;
   }
 }

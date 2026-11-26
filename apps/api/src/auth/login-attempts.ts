@@ -3,7 +3,8 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 const MAX_FAILURES = 5;
 const WINDOW_MS = 15 * 60_000;
 const BLOCK_MS = 15 * 60_000;
-const PRUNE_ABOVE = 1000;
+const MAX_TRACKED = 10_000;
+const PRUNE_EVERY_MS = 60_000;
 
 type Entry = { failures: number[]; blockedUntil: number };
 
@@ -14,6 +15,7 @@ type Entry = { failures: number[]; blockedUntil: number };
 @Injectable()
 export class LoginAttempts {
   private entries = new Map<string, Entry>();
+  private lastPrune = 0;
 
   assertAllowed(email: string, now = Date.now()) {
     const entry = this.entries.get(normalize(email));
@@ -23,7 +25,7 @@ export class LoginAttempts {
   }
 
   recordFailure(email: string, now = Date.now()) {
-    if (this.entries.size > PRUNE_ABOVE) this.prune(now);
+    if (now - this.lastPrune >= PRUNE_EVERY_MS) { this.lastPrune = now; this.prune(now); }
     const key = normalize(email);
     const entry = this.entries.get(key) ?? { failures: [], blockedUntil: 0 };
     entry.failures = entry.failures.filter(time => time > now - WINDOW_MS);
@@ -32,7 +34,14 @@ export class LoginAttempts {
       entry.blockedUntil = now + BLOCK_MS;
       entry.failures = [];
     }
+    this.entries.delete(key);
     this.entries.set(key, entry);
+    // Hard cap: forget the least recently failed emails first.
+    while (this.entries.size > MAX_TRACKED) this.entries.delete(this.entries.keys().next().value as string);
+  }
+
+  size() {
+    return this.entries.size;
   }
 
   reset(email: string) {

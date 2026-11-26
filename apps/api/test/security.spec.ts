@@ -111,3 +111,43 @@ describe('JwtAuthGuard revocable sessions', () => {
     await expect(run(token, { ...developer, isDeveloper: false }, { id: 'd' }).result).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
+
+describe('review fixes', () => {
+  it('rejects the public example secrets even though they are long', () => {
+    process.env.JWT_SECRET = 'replace-with-a-long-random-secret';
+    expect(() => jwtSecret()).toThrow('JWT_SECRET');
+    process.env.JWT_SECRET = 'development-only-secret-change-before-deployment';
+    expect(() => jwtSecret()).toThrow('JWT_SECRET');
+  });
+
+  it('counts parallel sign-ins before checking passwords', async () => {
+    const prisma: any = { user: { findUnique: jest.fn().mockResolvedValue({ id: 'u', passwordHash: 'h' }) } };
+    const service = new AuthService(prisma, { sign: jest.fn() } as any, new LoginAttempts());
+    (bcrypt.compare as jest.Mock).mockReset().mockResolvedValue(false);
+    const results = await Promise.allSettled(Array.from({ length: 8 }, () => service.login('p@q.com', 'mala')));
+    const blocked = results.filter(r => r.status === 'rejected' && String((r as PromiseRejectedResult).reason?.message).includes('Demasiados intentos'));
+    expect(blocked.length).toBe(3);
+    expect(bcrypt.compare).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps a bounded number of tracked emails', () => {
+    const attempts = new LoginAttempts();
+    for (let i = 0; i < 12_000; i++) attempts.recordFailure(`user${i}@x.com`, 0);
+    expect(attempts.size()).toBeLessThanOrEqual(10_000);
+  });
+
+  it('rejects overly long emails at the login endpoint', async () => {
+    const { ValidationPipe } = await import('@nestjs/common');
+    const { AuthController } = await import('../src/auth/auth.controller');
+    const dto = Reflect.getMetadata('design:paramtypes', AuthController.prototype, 'login')[0];
+    const pipe = new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true });
+    await expect(pipe.transform({ email: 'a'.repeat(250) + '@b.com', password: 'x' }, { type: 'body', metatype: dto })).rejects.toBeDefined();
+  });
+
+  it('drops a developer session once the account is no longer an owner', async () => {
+    const prisma: any = { user: { findUnique: jest.fn().mockResolvedValue({ id: 'u', tenantId: 't', clinicId: 'c', role: 'RECEPTIONIST', isDeveloper: true }) }, developmentBusiness: { findFirst: jest.fn().mockResolvedValue({ id: 'd' }) } };
+    const guard = new JwtAuthGuard({ verify: jest.fn().mockReturnValue({ sub: 'u', tenantId: 't2', clinicId: 'c2', role: 'CLINIC_OWNER' }) } as any, prisma);
+    const context: any = { switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: 'Bearer x' } }) }) };
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});

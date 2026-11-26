@@ -48,11 +48,10 @@ export class AuthService {
   async login(email: string, password: string) {
     const normalized = email.trim().toLowerCase();
     this.attempts.assertAllowed(normalized);
+    // Count the attempt before any await so parallel requests cannot all pass the check.
+    this.attempts.recordFailure(normalized);
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      this.attempts.recordFailure(normalized);
-      throw new UnauthorizedException('Credenciales inválidas');
-    }
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) throw new UnauthorizedException('Credenciales inválidas');
     this.attempts.reset(normalized);
     return this.session(user);
   }
