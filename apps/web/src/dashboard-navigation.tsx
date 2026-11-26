@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import './dashboard-navigation.css';
 import { EditPopover } from './edit-popover';
 
@@ -43,6 +43,16 @@ export function DashboardNavigation({ items, active, homeView = 'Asistente', dev
   const [addressDraft, setAddressDraft] = useState(address);
   const [addressError, setAddressError] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
+  // On narrow screens the sidebar is a drawer opened from the top bar.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) { setMenuOpen(false); menuButton.current?.focus(); } };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [menuOpen]);
+  const go = (view: WorkspaceDestination) => { setMenuOpen(false); onSelect(view); };
   async function saveAddress(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (savingAddress) return;
@@ -55,49 +65,55 @@ export function DashboardNavigation({ items, active, homeView = 'Asistente', dev
   }
   const formatted = new Intl.DateTimeFormat('es-ES', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date + 'T12:00:00Z'));
   const dateLabel = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  return <div className="workspace-top">
+  return <>
     <a className="workspace-skip" href="#workspace-content">Ir al contenido</a>
-    <div className="workspace-top-inner">
-      <header className="workspace-header">
-        <button type="button" className="workspace-brand" onClick={() => onSelect(homeView)} aria-label={homeView === 'Asistente' ? 'CrmNexodigitalAssist · Ir al asistente' : 'CrmNexodigitalAssist · Ir al inicio'}>
-          <img src="/branding/crm-nexodigital-assist-light.svg" width="272" height="92" alt="CrmNexodigitalAssist" />
-        </button>
-        <div className="workspace-context">
-          <div className="workspace-date" aria-live="polite" aria-atomic="true">
-          <span className="workspace-date-icon"><NavigationIcon name="Citas" /></span>
-          <div><span className="workspace-date-caption">{isToday ? 'Actividad de hoy' : 'Día seleccionado'}</span><time dateTime={date}>{dateLabel}</time></div>
-          </div>
-          <details className="workspace-location" ref={location} onToggle={event => {
-            setAddressOpen(event.currentTarget.open);
-            if (event.currentTarget.open) { setAddressDraft(address); setAddressError(''); }
-          }} onKeyDown={event => {
-            if (event.key === 'Escape' && !savingAddress && location.current) { location.current.open = false; location.current.querySelector('summary')?.focus(); }
-          }}>
-            <summary title={address || 'Añadir dirección'}>
-              <span className="workspace-date-icon"><NavigationIcon name="Ubicación" /></span>
-              <span className="workspace-location-copy"><span className="workspace-date-caption">Ubicación</span><span className="workspace-location-value">{address || 'Añadir dirección'}</span></span>
-              <span className="workspace-location-edit"><NavigationIcon name="Editar" /></span>
-            </summary>
-            <EditPopover open={addressOpen} busy={savingAddress} title="Editar ubicación" onClose={() => { setAddressOpen(false); if (location.current) location.current.open = false; }}><form className="workspace-location-form" onSubmit={saveAddress} aria-busy={savingAddress}>
-              <label>Dirección del negocio<input value={addressDraft} onChange={event => setAddressDraft(event.target.value)} autoComplete="street-address" placeholder="Calle, número, código postal y localidad" required maxLength={300} disabled={savingAddress} /></label>
-              {addressError && <p className="error" role="alert">{addressError}</p>}
-              <div><button type="button" className="secondary" disabled={savingAddress} onClick={() => { if (location.current) location.current.open = false; }}>Cancelar</button><button type="submit" className="primary" disabled={savingAddress}>{savingAddress ? 'Guardando…' : 'Guardar dirección'}</button></div>
-            </form></EditPopover>
-          </details>
-        </div>
-        <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>
-      </header>
-      {developmentPanel}
-      <nav className={items.length === 8 ? 'workspace-nav' : items.length === 6 ? 'workspace-nav workspace-nav-six' : 'workspace-nav workspace-nav-custom'} aria-label="Navegación principal">
+    <div className="workspace-topbar">
+      <button type="button" className="workspace-brand" onClick={() => go(homeView)} aria-label={homeView === 'Asistente' ? 'CrmNexodigitalAssist · Ir al asistente' : 'CrmNexodigitalAssist · Ir al inicio'}>
+        <img src="/branding/crm-nexodigital-assist-light.svg" width="272" height="92" alt="CrmNexodigitalAssist" />
+      </button>
+      <button type="button" ref={menuButton} className="workspace-menu-button" aria-expanded={menuOpen} aria-controls="workspace-sidebar" onClick={() => setMenuOpen(open => !open)}>
+        <span aria-hidden="true">☰</span> Menú
+      </button>
+    </div>
+    {menuOpen && <div className="workspace-scrim" aria-hidden="true" onClick={() => setMenuOpen(false)} />}
+    <aside id="workspace-sidebar" className={'workspace-sidebar' + (menuOpen ? ' is-open' : '')}>
+      <button type="button" className="workspace-brand" onClick={() => go(homeView)} aria-label={homeView === 'Asistente' ? 'CrmNexodigitalAssist · Ir al asistente' : 'CrmNexodigitalAssist · Ir al inicio'}>
+        <img src="/branding/crm-nexodigital-assist-light.svg" width="272" height="92" alt="CrmNexodigitalAssist" />
+      </button>
+      <div className="workspace-date" aria-live="polite" aria-atomic="true">
+        <span className="workspace-date-caption">{isToday ? 'Hoy' : 'Día seleccionado'}</span>
+        <time dateTime={date}>{dateLabel}</time>
+      </div>
+      <nav className="workspace-nav" aria-label="Navegación principal">
         {items.map(({ view, label }) => <button
-          key={view} type="button" className={'workspace-nav-card' + (active === view ? ' is-active' : '')}
-          aria-current={active === view ? 'page' : undefined} onClick={() => onSelect(view)}
+          key={view} type="button" className={'workspace-nav-item' + (active === view ? ' is-active' : '')}
+          aria-current={active === view ? 'page' : undefined} onClick={() => go(view)}
         >
           <span className="workspace-nav-icon">{view.startsWith('page:') ? <NavigationIcon name="Tratamientos" /> : <NavigationIcon name={view as WorkspaceView} />}</span>
           <span className="workspace-nav-label">{label}</span>
-          {active === view && <span className="workspace-nav-indicator" aria-hidden="true" />}
         </button>)}
       </nav>
-    </div>
-  </div>;
+      <div className="workspace-sidebar-footer">
+        <details className="workspace-location" ref={location} onToggle={event => {
+          setAddressOpen(event.currentTarget.open);
+          if (event.currentTarget.open) { setAddressDraft(address); setAddressError(''); }
+        }} onKeyDown={event => {
+          if (event.key === 'Escape' && !savingAddress && location.current) { event.preventDefault(); location.current.open = false; location.current.querySelector('summary')?.focus(); }
+        }}>
+          <summary title={address || 'Añadir dirección'}>
+            <span className="workspace-date-icon"><NavigationIcon name="Ubicación" /></span>
+            <span className="workspace-location-copy"><span className="workspace-date-caption">Ubicación</span><span className="workspace-location-value">{address || 'Añadir dirección'}</span></span>
+            <span className="workspace-location-edit"><NavigationIcon name="Editar" /></span>
+          </summary>
+          <EditPopover open={addressOpen} busy={savingAddress} title="Editar ubicación" onClose={() => { setAddressOpen(false); if (location.current) location.current.open = false; }}><form className="workspace-location-form" onSubmit={saveAddress} aria-busy={savingAddress}>
+            <label>Dirección del negocio<input value={addressDraft} onChange={event => setAddressDraft(event.target.value)} autoComplete="street-address" placeholder="Calle, número, código postal y localidad" required maxLength={300} disabled={savingAddress} /></label>
+            {addressError && <p className="error" role="alert">{addressError}</p>}
+            <div><button type="button" className="secondary" disabled={savingAddress} onClick={() => { if (location.current) location.current.open = false; }}>Cancelar</button><button type="submit" className="primary" disabled={savingAddress}>{savingAddress ? 'Guardando…' : 'Guardar dirección'}</button></div>
+          </form></EditPopover>
+        </details>
+        {developmentPanel}
+        <button type="button" className="logout workspace-logout" onClick={onLogout}><NavigationIcon name="Salir" /><span>Cerrar sesión</span></button>
+      </div>
+    </aside>
+  </>;
 }

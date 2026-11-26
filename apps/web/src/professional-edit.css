@@ -32,7 +32,6 @@
 :is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) :is(button.primary, button.secondary, a.secondary, .add-reservation, .person-card-details, .day-popover-close, .workspace-logout):hover:not(:disabled) { background: #1e293b; border-color: #1e293b; color: #fff; }
 :is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) button.primary:hover:not(:disabled) { background: #312e81; border-color: #312e81; }
 :is(.workspace-shell, .workspace-edit-dialog, .day-popover, .access) button:disabled { opacity: .5; cursor: not-allowed; }
-.workspace-shell .workspace-nav-card:not(.is-active) { background: linear-gradient(145deg, #d6deed, #c3d1e1) padding-box, var(--crm-card-border) border-box; color: #26334d; }
 :is(.workspace-shell, .workspace-edit-dialog, .access) button.link { color: #3730a3; }
 :is(.workspace-shell, .workspace-edit-dialog) .shift-choice button { background: #475569; border-color: #475569; color: #fff; }
 .workspace-shell .shift-choice button.selected, .workspace-edit-dialog .shift-choice button.selected { background: #3730a3; border-color: #3730a3; color: #fff; }

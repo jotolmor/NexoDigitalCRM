@@ -11,10 +11,6 @@
     radial-gradient(ellipse at 100% 65%, rgb(20 184 166 / 14%), transparent 48%),
     linear-gradient(145deg, #dce3ef, #e4e9f2 48%, #d4e3e7);
 }
-.workspace-shell .workspace-top {
-  border-bottom-color: #b9c8db;
-  background: linear-gradient(120deg, #e3e8f4, #dce4f0 58%, #d4e8e6);
-}
 
 :is(.workspace-shell, .day-popover, .workspace-edit-dialog) :is(.person-card, .appointment-card, .directory-record, .treatment-duration-card, .quarter-card, .overview-doctor, .panel, .calendar-panel, .schedule-form, .patient-create-form, .appointment-create-form, .directory-create, .directory-edit-form, .appointment-edit-form, .treatment-edit-form, .clinic-location-card, .ai-assistant-banner, .assistant-confirm-card, .treatment-intro, .workspace-location-form) {
   border: 1px solid transparent;
@@ -28,20 +24,13 @@
   box-shadow: var(--crm-card-shadow);
   transform: none;
 }
-.workspace-shell .workspace-nav-card, .workspace-shell .workspace-nav-card.is-active,
-.workspace-shell .workspace-nav-card:hover, .workspace-shell .workspace-nav-card:focus-visible {
-  box-shadow: var(--crm-card-shadow);
-  transform: none;
-  transition: color .18s ease;
-}
-.workspace-shell .workspace-nav-icon, .workspace-shell .workspace-nav-card.is-active .workspace-nav-icon,
 .workspace-shell .person-card-avatar, .workspace-shell .person-card-patient .person-card-avatar,
 .workspace-shell .appointments-list-section .appointment-card::before {
   box-shadow: 0 3px 10px rgb(15 23 42 / 4%);
 }
 :is(.workspace-shell, .day-popover, .workspace-edit-dialog) :is(.directory-record, .treatment-duration-card, .schedule-form, .directory-create)::before { display: none; }
 .workspace-shell .calendar-day:hover { transform: none; }
-.workspace-shell .workspace-date, .workspace-shell .workspace-location > summary { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: var(--crm-card-shadow); }
+.workspace-shell .workspace-location > summary { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: var(--crm-card-shadow); }
 .day-popover { border: 1px solid transparent; background: linear-gradient(#fff, #fff) padding-box, var(--crm-card-border) border-box; box-shadow: 0 16px 42px rgb(15 23 42 / 23%); }
 .access > section { box-shadow: var(--crm-card-shadow); }
 @keyframes access-border-pulse { 50% { box-shadow: 0 12px 32px rgb(49 46 129 / 19%), 0 3px 9px rgb(30 41 59 / 8%); } }

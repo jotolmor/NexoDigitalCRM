@@ -90,7 +90,7 @@ async def main():
   assert len(writes)==2 and writes[-1][0].endswith('/reschedule')
   await page.get_by_role('button',name='2026-11-06:',exact=False).click()
   await expect(page.get_by_role('dialog')).to_contain_text('Candela Prueba')
-  await expect(page.locator('.workspace-header time')).to_have_attribute('datetime','2026-11-06')
+  await expect(page.locator('.workspace-date time')).to_have_attribute('datetime','2026-11-06')
   await page.keyboard.press('Escape')
   # The header editor supports existing clinics and updates route destinations.
   location=page.locator('.workspace-location')
