@@ -34,10 +34,10 @@ Introduce las credenciales del propietario **en el servidor**. El script no mues
 6. Ejecuta manualmente el flujo. Con DRY_RUN, los trabajos se marcan SIMULATED y **no se ejecutan los nodos del proveedor**.
 7. Revisa las ejecuciones y el estado de conexión antes de activar el disparador periódico. La configuración del flujo evita guardar los datos completos de ejecuciones correctas y fallidas; no habilites su almacenamiento para depurar con datos reales.
 
-Para descargar el JSON desde PowerShell, después del despliegue:
+Para descargar el JSON desde PowerShell, después del despliegue (sustituye `usuario@tu-servidor` por tu acceso SSH):
 
 ```powershell
-scp root@82.165.104.229:/opt/nexocrm/integrations/n8n/nexocrm-notifications.json "$env:USERPROFILE\Downloads\nexocrm-notifications.json"
+scp usuario@tu-servidor:/opt/nexocrm/integrations/n8n/nexocrm-notifications.json "$env:USERPROFILE\Downloads\nexocrm-notifications.json"
 ```
 
 ## Proveedor preparado: Twilio
