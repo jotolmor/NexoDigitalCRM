@@ -1,8 +1,10 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { jwtSecret } from './auth/jwt-secret';
 
 async function bootstrap() {
+  jwtSecret();
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:5173,http://localhost:8080').split(',').map(origin => origin.trim()).filter(Boolean);

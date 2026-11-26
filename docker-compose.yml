@@ -21,7 +21,7 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: postgresql://nexoclinic:nexoclinic_dev_password@postgres:5432/nexoclinic?schema=public
-      JWT_SECRET: ${JWT_SECRET:-development-only-secret-change-before-deployment}
+      JWT_SECRET: ${JWT_SECRET:?Configura JWT_SECRET (32 caracteres o más) en .env}
       API_PORT: 3000
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
     ports:
