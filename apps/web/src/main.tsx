@@ -10,9 +10,9 @@ import { AppointmentOverview } from './appointment-overview';
 import { reminderLinks } from './appointment-reminder';
 import { clinicDateKey } from './overview-data';
 import { useAssistantConversation, clearAssistantConversations } from './assistant-conversation';
-import { builtInSections, CustomPageContent, PlatformPanel, type WorkspacePages } from './platform-pages';
+import { builtInSections, CustomPageContent, type WorkspacePages } from './workspace-pages';
 import type { WorkspaceDestination } from './dashboard-navigation';
-import { Access, platformAccessPath, type Session } from './access-pages';
+import { Access, type Session } from './access-pages';
 import { DashboardNavigation, type WorkspaceView } from './dashboard-navigation';
 import { PatientCreateForm, patientFields } from './patient-create-form';
 import { patientAgeOnDate } from './patient-demographics';
@@ -109,13 +109,7 @@ function Dashboard({ session, logout, onSession }: { session: Session; logout: (
   const [view, setView] = useState<WorkspaceDestination>('Asistente');
   const qc = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const clinic = useQuery({ queryKey: ['clinic'], enabled: !session.user.isPlatformAdmin, queryFn: () => request('/clinic/me', session.accessToken) });
-  if (session.user.isPlatformAdmin) {
-    return <main className="shell workspace-shell"><header className="panel"><h1>Administración de plataforma</h1>
-      <button type="button" onClick={logout}>Cerrar sesión</button></header>
-      <PlatformPanel request={(path, body, method) => request(path, session.accessToken, body, method)} />
-    </main>;
-  }
+  const clinic = useQuery({ queryKey: ['clinic'], queryFn: () => request('/clinic/me', session.accessToken) });
 
   if (clinic.isLoading) return <main className="center">Cargando tu clínica…</main>;
   if (clinic.isError || !clinic.data) return <main className="center"><section className="load-error"><div className="brand" role="img" aria-label="CrmNexodigitalAssist"><img className="crm-logo crm-logo-light" src="/branding/crm-nexodigital-assist-light.svg" alt="" aria-hidden="true" width="272" height="92"/><img className="crm-logo crm-logo-dark" src="/branding/crm-nexodigital-assist-dark.svg" alt="" aria-hidden="true" width="272" height="92"/></div><h1>No se pudo cargar la clínica</h1><p>La API no respondió correctamente. Comprueba tu conexión e inténtalo de nuevo.</p><button className="primary" onClick={() => { void clinic.refetch(); }}>Reintentar</button><button className="link" onClick={logout}>Volver a iniciar sesión</button></section></main>;
@@ -172,18 +166,8 @@ function App() {
   }, [qc]);
 
   const path = window.location.pathname.replace(/\/+$/, '');
-  const platformRoute = path === platformAccessPath;
   let content;
-  if (platformRoute && session && (session.user.isPlatformAdmin || session.user.isDeveloper)) {
-    const development = !session.user.isPlatformAdmin;
-    content = <main className="shell workspace-shell">
-      <header className="panel">
-        <h1>{development ? 'Administración de desarrollo' : 'Administración de plataforma'}</h1>
-        <button type="button" onClick={() => updateSession(null)}>Cerrar sesión</button>
-      </header>
-      <PlatformPanel development={development} request={(path, body, method) => request(path, session.accessToken, body, method)} />
-    </main>;
-  } else if (!platformRoute && path !== '/registro' && session) {
+  if (path !== '/registro' && session) {
     content = <Dashboard key={session.user.tenantId + ':' + session.user.clinicId} session={session} onSession={updateSession} logout={() => updateSession(null)} />;
   } else {
     content = <Access onSession={updateSession} />;
