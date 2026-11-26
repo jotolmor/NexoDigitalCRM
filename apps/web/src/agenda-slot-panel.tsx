@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { clinicTimeToIso, formatMinute, minuteOf, slotFits, type AgendaAppointment, type DayProfessional } from './agenda-grid';
 import { useCustomerText } from './customer-terminology';
 import './side-panel.css';
+import { PatientPicker } from './patient-picker';
 
 export type PanelTarget =
   | { kind: 'slot'; date: string; startMinute: number; professional: DayProfessional }
@@ -21,9 +22,9 @@ export function longDate(date: string) {
 
 export function AgendaSlotPanel({ target, timezone, canWrite, patients, patientsError, write, onDone, onClose }: Props) {
   const panel = useRef<HTMLElement>(null);
-  useEffect(() => { panel.current?.querySelector<HTMLElement>('select, input, button')?.focus(); }, []);
+  useEffect(() => { panel.current?.querySelector<HTMLElement>('input:not([type="hidden"]), select, button')?.focus(); }, []);
   useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) onClose(); };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [onClose]);
@@ -41,7 +42,6 @@ function SlotForm({ target, timezone, patients, patientsError, write, onDone }: 
   const [serviceId, setServiceId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const sorted = [...patients].sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'es'));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const service = target.professional.services.find(item => item.id === serviceId);
@@ -63,10 +63,7 @@ function SlotForm({ target, timezone, patients, patientsError, write, onDone }: 
   return <form onSubmit={submit} aria-busy={busy}>
     <h2 id="agenda-panel-title">Nueva cita</h2>
     <p className="agenda-panel-meta">{target.professional.name} · {longDate(target.date)} · {formatMinute(target.startMinute)}</p>
-    <label>{t('Paciente')}<select value={patientId} onChange={event => setPatientId(event.target.value)} required>
-      <option value="">{t('Selecciona un paciente')}</option>
-      {sorted.map(item => <option key={item.id} value={item.id}>{item.lastName}, {item.firstName}</option>)}
-    </select></label>
+    <PatientPicker patients={patients} value={patientId} onChange={setPatientId} />
     <label>Tratamiento<select value={serviceId} onChange={event => setServiceId(event.target.value)} required>
       <option value="">Selecciona un tratamiento</option>
       {target.professional.services.map(item => <option key={item.id} value={item.id}>{item.name} · {item.durationMinutes} min</option>)}

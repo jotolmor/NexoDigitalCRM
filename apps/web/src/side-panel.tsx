@@ -6,11 +6,11 @@ export function SidePanel({ label, onClose, children }: { label: string; onClose
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    panel.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+    panel.current?.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea, button')?.focus();
     return () => { if (opener?.isConnected) opener.focus(); };
   }, []);
   useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) onClose(); };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [onClose]);
