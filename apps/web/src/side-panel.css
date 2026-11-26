@@ -1,0 +1,19 @@
+.side-panel, .agenda-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; display: grid; align-content: start; gap: 14px; width: min(420px, 100vw); padding: 24px; overflow-y: auto; background: #fff; box-shadow: -8px 0 30px rgba(15, 23, 42, .15); }
+.side-panel h2, .agenda-panel h2 { margin: 0; font-size: 1.2rem; }
+.agenda-panel h3 { margin: 8px 0 0; font-size: .95rem; }
+.side-panel form, .agenda-panel form { display: grid; gap: 12px; }
+.side-panel label, .agenda-panel label { display: grid; gap: 6px; font-size: .85rem; font-weight: 600; color: #334155; }
+.side-panel :is(select, input, textarea), .agenda-panel :is(select, input) { min-height: 42px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; background: #fff; }
+.side-panel textarea { padding: 8px 10px; }
+.side-panel button, .agenda-panel button { min-height: 42px; border-radius: 10px; }
+.side-panel-close, .agenda-panel-close { justify-self: start; }
+.agenda-panel-meta { margin: 0; color: #475569; font-size: .88rem; }
+.agenda-panel-meta::first-letter { text-transform: uppercase; }
+
+/* Existing create forms keep their fields but lay out in one column inside the panel. */
+.side-panel :is(.patient-create-form, .appointment-create-form, .directory-create) { display: grid; gap: 12px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.side-panel :is(.patient-create-fields, .appointment-create-fields) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.side-panel :is(.patient-create-footer, .appointment-create-footer) .primary { width: 100%; }
+
+.page-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-bottom: 16px; }
+.page-actions .primary { min-height: 42px; padding: 0 18px; }

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { clinicTimeToIso, formatMinute, minuteOf, slotFits, type AgendaAppointment, type DayProfessional } from './agenda-grid';
 import { useCustomerText } from './customer-terminology';
+import './side-panel.css';
 
 export type PanelTarget =
   | { kind: 'slot'; date: string; startMinute: number; professional: DayProfessional }
