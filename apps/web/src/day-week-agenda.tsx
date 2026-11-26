@@ -1,37 +1,38 @@
-import { useCallback, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { columnBlocks, formatMinute, shiftDate, SLOT_MINUTES, visibleRange, weekDates, type Block, type DayData, type DayProfessional } from './agenda-grid';
+import { columnBlocks, formatMinute, gridRows, shiftDate, SLOT_MINUTES, visibleRange, weekDates, type Block, type DayData, type DayProfessional } from './agenda-grid';
 import { AgendaSlotPanel, longDate, statusLabels, type PanelTarget } from './agenda-slot-panel';
 import './day-week-agenda.css';
 
 type Props = {
-  scope: string[]; date: string; today: string; onDateChange: (date: string) => void;
+  scope: string[]; date: string; today: string; canWrite: boolean; onDateChange: (date: string) => void;
   load: (path: string) => Promise<any>; write: (path: string, body: unknown, method?: 'PATCH') => Promise<any>;
 };
 type Column = { key: string; title: string; subtitle?: string; date: string; professional?: DayProfessional; highlight?: boolean };
 
 const REFRESH_KEYS = [['appointments'], ['calendar'], ['calendar-day'], ['summary'], ['appointment-availability']];
 
-export function DayWeekAgenda({ scope, date, today, onDateChange, load, write }: Props) {
+export function DayWeekAgenda({ scope, date, today, canWrite, onDateChange, load, write }: Props) {
   const qc = useQueryClient();
   const [mode, setMode] = useState<'day' | 'week'>('day');
   const [professionalId, setProfessionalId] = useState('');
-  const [target, setTarget] = useState<PanelTarget | null>(null);
+  // The panel keeps the timezone of the day it was opened from, never a fallback.
+  const [open, setOpen] = useState<{ target: PanelTarget; timezone: string; opener: HTMLElement | null } | null>(null);
   const dates = mode === 'day' ? [date] : weekDates(date);
   const days = useQueries({
     queries: dates.map(item => ({ queryKey: ['calendar-day', 'agenda', ...scope, item], queryFn: () => load('/dashboard/day?date=' + item) as Promise<DayData> })),
   });
   const patients = useQuery({ queryKey: ['patients-agenda'], queryFn: () => load('/patients') });
-  const closePanel = useCallback(() => setTarget(null), []);
+  const closePanel = useCallback(() => { setOpen(current => { current?.opener?.focus(); return null; }); }, []);
+  useEffect(() => { setOpen(null); }, [date, mode]);
   const done = useCallback(async () => {
-    setTarget(null);
+    closePanel();
     await Promise.all(REFRESH_KEYS.map(queryKey => qc.invalidateQueries({ queryKey })));
-  }, [qc]);
+  }, [qc, closePanel]);
 
   const loading = days.some(day => day.isPending);
   const failed = days.find(day => day.error);
   const data = days.map(day => day.data).filter((day): day is DayData => Boolean(day));
-  const timezone = data[0]?.timezone ?? 'Europe/Madrid';
   const roster = data[0]?.professionals ?? [];
   const selectedId = roster.some(item => item.id === professionalId) ? professionalId : roster[0]?.id ?? '';
 
@@ -79,35 +80,42 @@ export function DayWeekAgenda({ scope, date, today, onDateChange, load, write }:
         </div>)}
         {columns.map((column, index) => (column.professional ? columnBlocks(column.professional, range) : [{ kind: 'closed', startMinute: range.startMinute, endMinute: range.endMinute } as Block])
           .map(block => <AgendaBlock key={`${column.key}-${block.startMinute}`} block={block} column={index + 2} firstMinute={range.startMinute}
-            professionalName={column.professional?.name ?? ''}
-            onPick={() => {
-              if (!column.professional) return;
-              if (block.kind === 'free') setTarget({ kind: 'slot', date: column.date, startMinute: block.startMinute, professional: column.professional });
-              if (block.kind === 'appointment' && block.appointment) setTarget({ kind: 'appointment', date: column.date, professional: column.professional, appointment: block.appointment });
+            label={`${shortDate(column.date)}, ${column.professional?.name ?? ''}`} canWrite={canWrite}
+            onPick={opener => {
+              const professional = column.professional;
+              const timezone = data.find(day => day.date === column.date)?.timezone;
+              if (!professional || !timezone) return;
+              if (block.kind === 'free') setOpen({ timezone, opener, target: { kind: 'slot', date: column.date, startMinute: block.startMinute, professional } });
+              if (block.kind === 'appointment' && block.appointment) setOpen({ timezone, opener, target: { kind: 'appointment', date: column.date, professional, appointment: block.appointment } });
             }} />))}
       </div>
     </div>}
-    {target && <AgendaSlotPanel key={target.kind === 'slot' ? `${target.date}-${target.startMinute}-${target.professional.id}` : target.appointment.id}
-      target={target} timezone={timezone} patients={patients.data ?? []} write={write} onDone={done} onClose={closePanel} />}
+    {open && <AgendaSlotPanel key={open.target.kind === 'slot' ? `${open.target.date}-${open.target.startMinute}-${open.target.professional.id}` : open.target.appointment.id}
+      target={open.target} timezone={open.timezone} canWrite={canWrite} patients={patients.data ?? []} patientsError={patients.error instanceof Error ? patients.error.message : ''} write={write} onDone={done} onClose={closePanel} />}
   </section>;
 }
 
-function AgendaBlock({ block, column, firstMinute, professionalName, onPick }: { block: Block; column: number; firstMinute: number; professionalName: string; onPick: () => void }) {
-  const style = { gridColumn: column, gridRow: `${(block.startMinute - firstMinute) / SLOT_MINUTES + 2} / span ${Math.max(1, Math.round((block.endMinute - block.startMinute) / SLOT_MINUTES))}` };
+function AgendaBlock({ block, column, firstMinute, label, canWrite, onPick }: { block: Block; column: number; firstMinute: number; label: string; canWrite: boolean; onPick: (opener: HTMLElement) => void }) {
+  const { row, span } = gridRows(block, firstMinute);
+  const style: CSSProperties = { gridColumn: column, gridRow: `${row} / span ${span}` };
   if (block.kind === 'free') {
-    return <button type="button" className="agenda-block agenda-free" style={style} aria-label={`Reservar ${formatMinute(block.startMinute)} con ${professionalName}`} onClick={onPick}>
+    if (!canWrite) return <div className="agenda-block agenda-free is-readonly" style={style} aria-hidden="true" />;
+    return <button type="button" className="agenda-block agenda-free" style={style} aria-label={`Reservar ${formatMinute(block.startMinute)}, ${label}`} onClick={event => onPick(event.currentTarget)}>
       <span>{formatMinute(block.startMinute)}</span>
     </button>;
   }
   if (block.kind === 'appointment' && block.appointment) {
     const item = block.appointment;
-    return <button type="button" className={`agenda-block agenda-appointment status-${item.status.toLowerCase()}${block.endMinute - block.startMinute <= SLOT_MINUTES ? ' is-short' : ''}`} style={style} onClick={onPick}
-      aria-label={`${item.patient.firstName} ${item.patient.lastName}, ${item.start}–${item.end}${item.service ? `, ${item.service.name}` : ''}, ${statusLabels[item.status] ?? item.status}`}>
+    const lanes = block.lanes ?? 1;
+    if (lanes > 1) Object.assign(style, { width: `calc(${100 / lanes}% - 6px)`, marginLeft: `calc(${(block.lane ?? 0) * 100 / lanes}% + 3px)`, justifySelf: 'start' });
+    return <button type="button" className={`agenda-block agenda-appointment status-${item.status.toLowerCase()}${block.endMinute - block.startMinute <= SLOT_MINUTES ? ' is-short' : ''}`} style={style} onClick={event => onPick(event.currentTarget)}
+      aria-label={`${item.patient.firstName} ${item.patient.lastName}, ${label}, ${item.start}–${item.end}${item.service ? `, ${item.service.name}` : ''}, ${statusLabels[item.status] ?? item.status}`}>
       <strong>{item.patient.firstName} {item.patient.lastName}</strong>
       <span>{item.start}–{item.end}{item.service ? ` · ${item.service.name}` : ''}</span>
     </button>;
   }
-  return <div className={`agenda-block agenda-${block.kind}`} style={style} aria-hidden="true" title={block.kind === 'absence' ? 'Ausencia' : undefined} />;
+  if (block.kind === 'absence') return <div className="agenda-block agenda-absence" style={style} role="img" aria-label={`Ausencia, ${label}`} title="Ausencia" />;
+  return <div className="agenda-block agenda-closed" style={style} aria-hidden="true" />;
 }
 
 function shortDate(date: string) {

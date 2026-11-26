@@ -27,7 +27,9 @@
 .agenda-closed { margin: 0; border-radius: 0; background: #f1f5f9; }
 .agenda-absence { margin: 0; border-radius: 0; background: repeating-linear-gradient(45deg, #f1f5f9 0 6px, #e2e8f0 6px 12px); }
 .agenda-free { border: 1px dashed transparent; background: #f0fdf4; color: transparent; cursor: pointer; font-size: .72rem; padding: 0 6px; }
-.agenda-free:hover, .agenda-free:focus-visible { border-color: #16a34a; color: #166534; outline: none; }
+.agenda-free:hover, .agenda-free:focus-visible { border-color: #16a34a; color: #166534; }
+.agenda-free:focus-visible { outline: 2px solid #16a34a; outline-offset: -2px; }
+.agenda-free.is-readonly { cursor: default; }
 .agenda-appointment { z-index: 1; display: grid; align-content: start; gap: 2px; overflow: hidden; padding: 4px 8px; border: 0; border-left: 4px solid #4f46e5; background: #eef2ff; color: #1e1b4b; cursor: pointer; }
 .agenda-appointment strong { font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda-appointment span { font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

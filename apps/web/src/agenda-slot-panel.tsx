@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { clinicTimeToIso, formatMinute, minuteOf, slotFits, type AgendaAppointment, type DayProfessional } from './agenda-grid';
 import { useCustomerText } from './customer-terminology';
 
@@ -7,7 +7,7 @@ export type PanelTarget =
   | { kind: 'appointment'; date: string; professional: DayProfessional; appointment: AgendaAppointment };
 type Patient = { id: string; firstName: string; lastName: string };
 type Write = (path: string, body: unknown, method?: 'PATCH') => Promise<any>;
-type Props = { target: PanelTarget; timezone: string; patients: Patient[]; write: Write; onDone: () => void; onClose: () => void };
+type Props = { target: PanelTarget; timezone: string; canWrite: boolean; patients: Patient[]; patientsError?: string; write: Write; onDone: () => void; onClose: () => void };
 
 export const statusLabels: Record<string, string> = {
   SCHEDULED: 'Programada', CONFIRMED: 'Confirmada', COMPLETED: 'Realizada', NO_SHOW: 'No asistió', CANCELLED: 'Cancelada',
@@ -18,21 +18,23 @@ export function longDate(date: string) {
   return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-export function AgendaSlotPanel({ target, timezone, patients, write, onDone, onClose }: Props) {
+export function AgendaSlotPanel({ target, timezone, canWrite, patients, patientsError, write, onDone, onClose }: Props) {
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => { panel.current?.querySelector<HTMLElement>('select, input, button')?.focus(); }, []);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [onClose]);
-  return <aside className="agenda-panel" role="dialog" aria-modal="false" aria-labelledby="agenda-panel-title">
+  return <aside ref={panel} className="agenda-panel" role="dialog" aria-modal="false" aria-labelledby="agenda-panel-title">
     {target.kind === 'slot'
-      ? <SlotForm target={target} timezone={timezone} patients={patients} write={write} onDone={onDone} />
-      : <AppointmentForm target={target} timezone={timezone} write={write} onDone={onDone} />}
+      ? <SlotForm target={target} timezone={timezone} patients={patients} patientsError={patientsError} write={write} onDone={onDone} />
+      : <AppointmentForm target={target} timezone={timezone} canWrite={canWrite} write={write} onDone={onDone} />}
     <button type="button" className="agenda-panel-close" onClick={onClose}>Cerrar</button>
   </aside>;
 }
 
-function SlotForm({ target, timezone, patients, write, onDone }: { target: Extract<PanelTarget, { kind: 'slot' }>; timezone: string; patients: Patient[]; write: Write; onDone: () => void }) {
+function SlotForm({ target, timezone, patients, patientsError, write, onDone }: { target: Extract<PanelTarget, { kind: 'slot' }>; timezone: string; patients: Patient[]; patientsError?: string; write: Write; onDone: () => void }) {
   const t = useCustomerText();
   const [patientId, setPatientId] = useState('');
   const [serviceId, setServiceId] = useState('');
@@ -68,12 +70,13 @@ function SlotForm({ target, timezone, patients, write, onDone }: { target: Extra
       <option value="">Selecciona un tratamiento</option>
       {target.professional.services.map(item => <option key={item.id} value={item.id}>{item.name} · {item.durationMinutes} min</option>)}
     </select></label>
+    {patientsError && <p className="error" role="alert">{patientsError}</p>}
     {error && <p className="error" role="alert">{error}</p>}
     <button className="primary" type="submit" disabled={busy}>{busy ? 'Reservando…' : 'Reservar cita'}</button>
   </form>;
 }
 
-function AppointmentForm({ target, timezone, write, onDone }: { target: Extract<PanelTarget, { kind: 'appointment' }>; timezone: string; write: Write; onDone: () => void }) {
+function AppointmentForm({ target, timezone, canWrite, write, onDone }: { target: Extract<PanelTarget, { kind: 'appointment' }>; timezone: string; canWrite: boolean; write: Write; onDone: () => void }) {
   const { appointment, professional } = target;
   const [status, setStatus] = useState(appointment.status);
   const [date, setDate] = useState(target.date);
@@ -104,7 +107,7 @@ function AppointmentForm({ target, timezone, write, onDone }: { target: Extract<
   return <>
     <h2 id="agenda-panel-title">{appointment.patient.firstName} {appointment.patient.lastName}</h2>
     <p className="agenda-panel-meta">{professional.name} · {longDate(target.date)} · {appointment.start}–{appointment.end}{appointment.service ? ` · ${appointment.service.name}` : ''}</p>
-    <form onSubmit={saveStatus} aria-busy={busy}>
+    {canWrite && <><form onSubmit={saveStatus} aria-busy={busy}>
       <label>Estado<select value={status} onChange={event => setStatus(event.target.value)}>
         {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>
@@ -118,7 +121,7 @@ function AppointmentForm({ target, timezone, write, onDone }: { target: Extract<
         {professional.services.map(item => <option key={item.id} value={item.id}>{item.name} · {item.durationMinutes} min</option>)}
       </select></label>
       <button className="primary" type="submit" disabled={busy}>Guardar cambio</button>
-    </form>
+    </form></>}
     {error && <p className="error" role="alert">{error}</p>}
   </>;
 }

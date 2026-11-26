@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { weekDates, shiftDate, visibleRange, columnBlocks, slotFits, clinicTimeToIso } from '../src/agenda-grid.ts';
+import { weekDates, shiftDate, visibleRange, columnBlocks, slotFits, clinicTimeToIso, gridRows } from '../src/agenda-grid.ts';
 
 const professional = (overrides = {}) => ({
   id: 'p1', name: 'Clara Montoro', services: [], schedule: [], appointments: [], timeOff: [], freeSlots: [], ...overrides,
@@ -63,4 +63,21 @@ test('clinicTimeToIso uses the clinic timezone, including daylight-saving change
   assert.equal(clinicTimeToIso('2026-03-29', 600, 'Europe/Madrid'), '2026-03-29T08:00:00.000Z');
   assert.equal(clinicTimeToIso('2026-10-25', 600, 'Europe/Madrid'), '2026-10-25T09:00:00.000Z');
   assert.equal(clinicTimeToIso('2026-11-27', 540, 'America/New_York'), '2026-11-27T14:00:00.000Z');
+});
+
+test('columnBlocks keeps overlapping appointments side by side instead of hiding them', () => {
+  const first = { ...appointment('09:00', '10:00'), id: 'a1', status: 'NO_SHOW' };
+  const second = { ...appointment('09:30', '10:00'), id: 'a2' };
+  const third = { ...appointment('09:00', '09:15'), id: 'a3' };
+  const blocks = columnBlocks(professional({ schedule: [{ startMinute: 540, endMinute: 600 }], appointments: [first, second, third] }), { startMinute: 540, endMinute: 600 })
+    .filter(block => block.kind === 'appointment');
+  assert.deepEqual(blocks.map(b => [b.appointment.id, b.lane, b.lanes]).sort(), [['a1', 0, 2], ['a2', 1, 2], ['a3', 1, 2]]);
+});
+
+test('columnBlocks snaps free slots inward to 15-minute rows and gridRows never returns fractions', () => {
+  const day = professional({ schedule: [{ startMinute: 540, endMinute: 600 }], freeSlots: [{ startMinute: 550, endMinute: 600 }], timeOff: [{ start: '09:00', end: '09:10' }] });
+  const free = columnBlocks(day, { startMinute: 540, endMinute: 600 }).filter(b => b.kind === 'free');
+  assert.deepEqual(free.map(b => [b.startMinute, b.endMinute]), [[555, 570], [570, 585], [585, 600]]);
+  assert.deepEqual(gridRows({ startMinute: 580, endMinute: 640 }, 540), { row: 4, span: 5 });
+  assert.deepEqual(gridRows({ startMinute: 540, endMinute: 550 }, 540), { row: 2, span: 1 });
 });
