@@ -75,3 +75,39 @@ describe('AuthService.login rate limit', () => {
     expect(bcrypt.compare).not.toHaveBeenCalled();
   });
 });
+
+import { UnauthorizedException } from '@nestjs/common';
+import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
+
+describe('JwtAuthGuard revocable sessions', () => {
+  const account = { id: 'u', tenantId: 't', clinicId: 'c', role: 'RECEPTIONIST', isDeveloper: false };
+  function run(payload: any, dbUser: any, devBusiness: any = null) {
+    const prisma: any = { user: { findUnique: jest.fn().mockResolvedValue(dbUser) }, developmentBusiness: { findFirst: jest.fn().mockResolvedValue(devBusiness) } };
+    const guard = new JwtAuthGuard({ verify: jest.fn().mockReturnValue(payload) } as any, prisma);
+    const request: any = { headers: { authorization: 'Bearer token' } };
+    const context: any = { switchToHttp: () => ({ getRequest: () => request }) };
+    return { result: guard.canActivate(context), request, prisma };
+  }
+
+  it('rejects a token whose account no longer exists or has no subject', async () => {
+    await expect(run({ sub: 'u', tenantId: 't', clinicId: 'c', role: 'CLINIC_OWNER' }, null).result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(run({ tenantId: 't', clinicId: 'c', role: 'CLINIC_OWNER' }, account).result).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('uses the current role from the database for the account own business', async () => {
+    const { result, request } = run({ sub: 'u', tenantId: 't', clinicId: 'c', role: 'CLINIC_OWNER' }, account);
+    await expect(result).resolves.toBe(true);
+    expect(request.user).toEqual({ sub: 'u', tenantId: 't', clinicId: 'c', role: 'RECEPTIONIST' });
+  });
+
+  it('allows a developer session only in a business the developer still owns', async () => {
+    const developer = { ...account, role: 'CLINIC_OWNER', isDeveloper: true };
+    const token = { sub: 'u', tenantId: 't2', clinicId: 'c2', role: 'CLINIC_OWNER' };
+    const allowed = run(token, developer, { id: 'd' });
+    await expect(allowed.result).resolves.toBe(true);
+    expect(allowed.request.user).toEqual({ sub: 'u', tenantId: 't2', clinicId: 'c2', role: 'CLINIC_OWNER' });
+    expect(allowed.prisma.developmentBusiness.findFirst).toHaveBeenCalledWith({ where: { developerUserId: 'u', clinicId: 'c2', clinic: { tenantId: 't2' } }, select: { id: true } });
+    await expect(run(token, developer, null).result).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(run(token, { ...developer, isDeveloper: false }, { id: 'd' }).result).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});
