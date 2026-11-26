@@ -44,7 +44,7 @@ async def main():
   await expect(page.locator('.workspace-date time')).to_have_attribute('datetime', '2026-11-03')
   await expect(page.locator('.workspace-date')).to_contain_text('3 de noviembre de 2026')
   await expect(page.locator('.overview-roster > .person-roster-groups > .panel')).to_have_count(2)
-  await expect(page.get_by_role('region',name='Doctores con citas',exact=True)).not_to_contain_text('Paciente Uno')
+  await expect(page.get_by_role('region',name='Profesionales con citas',exact=True)).not_to_contain_text('Paciente Uno')
   await expect(page.get_by_role('region',name='Pacientes con citas',exact=True)).not_to_contain_text('Detalles de citas de Doctora Clara')
   await expect(page.locator('.overview-roster')).to_contain_text('Doctora Clara')
   await expect(page.locator('.overview-roster')).to_contain_text('17:00–17:30')

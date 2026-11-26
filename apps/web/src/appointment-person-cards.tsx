@@ -28,11 +28,11 @@ export function AppointmentPersonCards({ roster, timezone, onDetails }: Props) {
   }
 
   return <div className="person-roster-groups">
-    <section className="panel person-roster-group" aria-label="Doctores con citas">
-      <div className="person-roster-heading"><h3>Doctores con citas</h3><span>{roster.doctors.length} profesionales · {timezone}</span></div>{!roster.total && <p className="overview-empty">No hay citas para este día.</p>}<div className="person-card-list">{roster.doctors.map(({ professional, appointments }) => card({ kind: 'doctor', id: professional.id }, professional.firstName, professional.lastName, professional.specialty || 'Profesional', appointments))}</div>
+    <section className="panel person-roster-group" aria-label={t('Profesionales con citas')}>
+      <div className="person-roster-heading"><h3>{t('Profesionales con citas')}</h3><span>{roster.doctors.length} {roster.doctors.length === 1 ? 'profesional' : 'profesionales'}</span></div>{!roster.total && <p className="overview-empty">No hay citas para este día.</p>}<div className="person-card-list">{roster.doctors.map(({ professional, appointments }) => card({ kind: 'doctor', id: professional.id }, professional.firstName, professional.lastName, professional.specialty || 'Profesional', appointments))}</div>
     </section>
     <section className="panel person-roster-group" aria-label={t("Pacientes con citas")}>
-      <div className="person-roster-heading"><h3>{t("Pacientes con citas")}</h3><span>{roster.patients}{t(" pacientes · ")}{timezone}</span></div>{!roster.total && <p className="overview-empty">No hay citas para este día.</p>}<div className="person-card-list">{roster.patientGroups.map(({ patient, appointments }) => {
+      <div className="person-roster-heading"><h3>{t("Pacientes con citas")}</h3><span>{roster.patients}{t(roster.patients === 1 ? " paciente" : " pacientes")}</span></div>{!roster.total && <p className="overview-empty">No hay citas para este día.</p>}<div className="person-card-list">{roster.patientGroups.map(({ patient, appointments }) => {
         const professionals = new Map(appointments.map(item => [item.professional.id, `${item.professional.firstName} ${item.professional.lastName}`.trim()]));
         return card({ kind: 'patient', id: patient.id }, patient.firstName, patient.lastName, 'Con ' + [...professionals.values()].join(' · '), appointments);
       })}</div>
