@@ -3,10 +3,11 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { LoginAttempts } from './login-attempts';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(private prisma: PrismaService, private jwt: JwtService, private attempts: LoginAttempts = new LoginAttempts()) {}
   async register(input: { clinicName: string; specialty: string; businessType?: string; address?: string; name: string; email: string; password: string }) {
     const email = input.email.trim().toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('Este correo ya está registrado. Inicia sesión o utiliza otro correo.');
@@ -45,8 +46,14 @@ export class AuthService {
     return labels[businessType] ?? labels.OTHER;
   }
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) throw new UnauthorizedException('Credenciales inválidas');
+    const normalized = email.trim().toLowerCase();
+    this.attempts.assertAllowed(normalized);
+    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      this.attempts.recordFailure(normalized);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+    this.attempts.reset(normalized);
     return this.session(user);
   }
   async createMember(tenantId: string, clinicId: string, input: { name: string; email: string; password: string; role: UserRole }) {
