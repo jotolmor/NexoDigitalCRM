@@ -1,5 +1,5 @@
 """Merged appointments page and cache refresh, with a fully mocked API."""
-import asyncio, os, re
+import asyncio, os, re, tempfile
 from urllib.parse import unquote
 from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
@@ -54,17 +54,22 @@ async def main():
   await expect(nav.get_by_role('button',name='Citas',exact=True)).to_have_count(1)
   await expect(nav.get_by_role('button',name='Resumen',exact=True)).to_have_count(0)
   await expect(page.get_by_role('heading',name='Agenda · 2026')).to_be_visible()
-  await expect(page.get_by_role('heading',name='Nueva cita',exact=True)).to_be_visible()
-  assert await page.locator('.appointment-create-panel').evaluate('(e)=>e.getBoundingClientRect().top >= document.querySelector(".calendar-panel").getBoundingClientRect().bottom')
+  # Creating an appointment happens in a side panel opened from the page actions.
+  await expect(page.locator('.appointment-create-form')).to_have_count(0)
+  await page.locator('.page-actions').get_by_role('button',name='+ Nueva cita',exact=True).click()
+  await expect(page.get_by_role('dialog',name='Nueva cita').get_by_role('heading',name='Nueva cita',exact=True)).to_be_visible()
   await expect(page.locator('.clinic-location-card')).to_have_count(0)
   await expect(page.locator('.workspace-location-value')).to_have_text(address)
   await expect(page.get_by_role('heading',name='Próximas citas')).to_be_visible()
   form=page.locator('.appointment-create-form')
-  await form.get_by_label(re.compile(r'^Paciente')).select_option('patient')
+  await form.get_by_role('combobox',name='Paciente',exact=True).fill('Cand')
+  await form.get_by_role('option',name=re.compile('Candela Prueba')).click()
+  await expect(form.locator('.patient-picker-chosen')).to_contain_text('Candela Prueba')
   await form.get_by_label(re.compile(r'^Tratamiento')).select_option('service')
   await form.get_by_label(re.compile(r'^Profesional')).select_option('doctor')
   await form.get_by_role('button',name='Usar este horario').click()
   await form.get_by_role('button',name='Reservar cita',exact=True).click()
+  await expect(page.get_by_role('dialog',name='Nueva cita')).to_have_count(0)
   await expect(page.locator('.overview-roster')).to_contain_text('Candela Prueba')
   await expect(page.locator('.overview-roster')).to_contain_text('12:00–12:30')
   await expect(page.locator('.appointment-list')).to_contain_text('Candela Prueba')
@@ -83,7 +88,7 @@ async def main():
   await page.locator('.appointment-card').hover()
   assert await page.locator('.appointment-card').evaluate('e=>getComputedStyle(e).transform')=='none'
   assert len(writes)==1 and writes[0][1]['startsAt']=='2026-11-05T11:00:00.000Z',writes
-  await page.get_by_role('button',name='Editar cita',exact=True).click()
+  await page.locator('.appointment-card').get_by_role('button',name='Editar',exact=True).click()
   edit=page.locator('.appointment-edit-form')
   await edit.get_by_label('Fecha y hora',exact=True).fill('2026-11-06T12:00')
   await edit.get_by_role('button',name='Guardar cambios',exact=True).click()
@@ -107,10 +112,12 @@ async def main():
   from urllib.parse import parse_qs as parse_query
   route_href=await page.get_by_role('link',name='Ruta a pie',exact=True).get_attribute('href')
   assert parse_query(urlparse(route_href).query)['destination']==['Avenida Nueva, 22, Sevilla']
-  await page.screenshot(path='/tmp/nexocrm-citas-unificada.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-citas-unificada.png'),full_page=True)
   await page.set_viewport_size({'width':390,'height':844})
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-  await page.screenshot(path='/tmp/nexocrm-citas-unificada-mobile.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-citas-unificada-mobile.png'),full_page=True)
+  # Below 1024px the sidebar (with the location editor) is a drawer behind «Menú».
+  await page.get_by_role('button',name='Menú').click()
   await location.locator('summary').click()
   bounds=await page.get_by_role('dialog',name='Editar ubicación').bounding_box()
   assert bounds['x']>=0 and bounds['x']+bounds['width']<=391,bounds

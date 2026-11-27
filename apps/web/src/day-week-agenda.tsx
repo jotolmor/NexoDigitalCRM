@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { columnBlocks, formatMinute, gridRows, shiftDate, SLOT_MINUTES, visibleRange, weekDates, type Block, type DayData, type DayProfessional } from './agenda-grid';
+import { columnBlocks, formatMinute, gridRows, normalizeDay, shiftDate, SLOT_MINUTES, visibleRange, weekDates, type Block, type DayData, type DayProfessional } from './agenda-grid';
 import { AgendaSlotPanel, longDate, statusLabels, type PanelTarget } from './agenda-slot-panel';
 import './day-week-agenda.css';
 
@@ -20,7 +20,7 @@ export function DayWeekAgenda({ scope, date, today, canWrite, onDateChange, load
   const [open, setOpen] = useState<{ target: PanelTarget; timezone: string; opener: HTMLElement | null } | null>(null);
   const dates = mode === 'day' ? [date] : weekDates(date);
   const days = useQueries({
-    queries: dates.map(item => ({ queryKey: ['calendar-day', 'agenda', ...scope, item], queryFn: () => load('/dashboard/day?date=' + item) as Promise<DayData> })),
+    queries: dates.map(item => ({ queryKey: ['calendar-day', 'agenda', ...scope, item], queryFn: async (): Promise<DayData> => normalizeDay(await load('/dashboard/day?date=' + item), item) })),
   });
   const patients = useQuery({ queryKey: ['patients-agenda'], queryFn: () => load('/patients') });
   const closePanel = useCallback(() => { setOpen(current => { current?.opener?.focus(); return null; }); }, []);

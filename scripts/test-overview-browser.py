@@ -28,7 +28,7 @@ async def main():
    elif path=='/api/dashboard/day':
     day=parse_qs(parsed.query)['date'][0]
     if day=='2026-11-06': await route.fulfill(status=500,json={'message':'Fixture error'},headers=headers);return
-    data={'date':day,'timezone':'Europe/Madrid','appointments':TODAY if day=='2026-11-03' else NEXT if day=='2026-11-04' else [],'professionals':[{'name':'Sin citas','appointments':[]}]}
+    data={'date':day,'timezone':'Europe/Madrid','appointments':TODAY if day=='2026-11-03' else NEXT if day=='2026-11-04' else [],'professionals':[{'id':'d3','name':'Sin citas Demo','appointments':[]}]}
    else:data=[]
    await route.fulfill(json=data,headers=headers)
   await page.route('**/api/**',api)
@@ -39,7 +39,9 @@ async def main():
   await expect(page.locator('.overview-metrics')).to_have_count(0)
   await expect(page.locator('main h1')).to_have_text('Citas')
   await expect(page.get_by_role('navigation').get_by_role('button',name='Resumen',exact=True)).to_have_count(0)
-  await expect(page.locator('.appointment-create-panel')).to_be_visible()
+  # «Nueva cita» opens in a side panel from the page actions; no inline form.
+  await expect(page.locator('.page-actions').get_by_role('button',name='+ Nueva cita',exact=True)).to_be_visible()
+  await expect(page.locator('.appointment-create-form')).to_have_count(0)
   await expect(page.locator('main .overview-date')).to_have_count(0)
   await expect(page.locator('.workspace-date time')).to_have_attribute('datetime', '2026-11-03')
   await expect(page.locator('.workspace-date')).to_contain_text('3 de noviembre de 2026')
@@ -122,8 +124,11 @@ async def main():
   await page.locator('.overview-roster').screenshot(path=str(ARTIFACTS/'person-cards-mobile.png'))
   assert await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
   assert '/api/patients' in paths and '/api/professionals' in paths
+  # Below 1024px the navigation is a drawer opened from «Menú».
+  await page.get_by_role('button',name='Menú').click()
   await page.get_by_role('navigation',name='Navegación principal').get_by_role('button',name='Asistente',exact=True).click()
   await expect(page.locator('.workspace-date time')).to_have_attribute('datetime','2026-11-03')
+  await page.get_by_role('button',name='Menú').click()
   await page.get_by_role('navigation',name='Navegación principal').get_by_role('button',name='Citas',exact=True).click()
   await expect(page.locator('.workspace-date time')).to_have_attribute('datetime','2026-11-04')
   await expect(page.locator('.workspace-date')).to_contain_text('Día seleccionado')

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { weekDates, shiftDate, visibleRange, columnBlocks, slotFits, clinicTimeToIso, gridRows } from '../src/agenda-grid.ts';
+import { weekDates, shiftDate, visibleRange, columnBlocks, slotFits, clinicTimeToIso, gridRows, normalizeDay } from '../src/agenda-grid.ts';
 
 const professional = (overrides = {}) => ({
   id: 'p1', name: 'Clara Montoro', services: [], schedule: [], appointments: [], timeOff: [], freeSlots: [], ...overrides,
@@ -80,4 +80,16 @@ test('columnBlocks snaps free slots inward to 15-minute rows and gridRows never 
   assert.deepEqual(free.map(b => [b.startMinute, b.endMinute]), [[555, 570], [570, 585], [585, 600]]);
   assert.deepEqual(gridRows({ startMinute: 580, endMinute: 640 }, 540), { row: 4, span: 5 });
   assert.deepEqual(gridRows({ startMinute: 540, endMinute: 550 }, 540), { row: 2, span: 1 });
+});
+
+test('normalizeDay fills missing lists so incomplete day data still renders', () => {
+  const day = normalizeDay({ timezone: 'Europe/Madrid', professionals: [{ id: 'p1', name: 'Sin horario' }, { name: 'Sin id' }] }, '2026-11-04');
+  assert.equal(day.date, '2026-11-04');
+  assert.equal(day.professionals.length, 1);
+  const [only] = day.professionals;
+  for (const key of ['services', 'schedule', 'appointments', 'timeOff', 'freeSlots']) assert.deepEqual(only[key], [], key);
+  assert.deepEqual(visibleRange(day.professionals), { startMinute: 480, endMinute: 1200 });
+  assert.ok(columnBlocks(only, visibleRange(day.professionals)).length > 0);
+  assert.deepEqual(normalizeDay(null, '2026-11-05'), { date: '2026-11-05', timezone: 'Europe/Madrid', professionals: [] });
+  assert.deepEqual(normalizeDay({ professionals: 'x' }, '2026-11-05').professionals, []);
 });

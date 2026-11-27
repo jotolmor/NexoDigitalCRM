@@ -1,5 +1,5 @@
 """Exercise appointment search with intercepted fixtures; no production data."""
-import asyncio, os
+import asyncio, os, tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -7,7 +7,7 @@ from playwright.async_api import async_playwright, expect
 
 async def main():
  async with async_playwright() as p:
-  browser = await p.chromium.launch(executable_path='/usr/bin/chromium', args=['--no-sandbox'])
+  browser = await p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'), args=['--no-sandbox'])
   page = await browser.new_page(viewport={'width':1440,'height':1000})
   await page.clock.set_fixed_time(datetime(2026,11,10,9,tzinfo=timezone.utc))
   errors=[]
@@ -25,13 +25,13 @@ async def main():
    data={'/api/clinic/me':{'name':'Clínica Prueba','timezone':'Europe/Madrid'},'/api/appointments':[appointment],'/api/professionals':[doctor],'/api/patients':[patient],'/api/dashboard/calendar':{'days':[]},'/api/dashboard/day':{'timezone':'Europe/Madrid','appointments':[]}}.get(path,[])
    await route.fulfill(json=data,headers=headers)
   await page.route('**/api/**',api)
-  await page.goto('http://127.0.0.1:5173')
+  await page.goto(os.environ.get('NEXO_TEST_URL','http://127.0.0.1:5173'))
   await page.evaluate("localStorage.setItem('nexoclinic-session',JSON.stringify({accessToken:'fixture',user:{id:'u',tenantId:'t',clinicId:'c'}}))")
   await page.reload()
   await page.get_by_role('navigation').get_by_role('button',name='Citas',exact=True).click()
   form=page.locator('.appointment-search-form')
   await expect(form).to_be_visible()
-  positions=await page.evaluate("['.appointment-search-panel','.calendar-panel','.patient-create-panel','.appointment-create-panel'].map(s=>document.querySelector(s).getBoundingClientRect().top)")
+  positions=await page.evaluate("['.page-actions','.day-week-agenda','.appointment-search-panel','.calendar-panel','.appointments-list-section'].map(s=>document.querySelector(s).getBoundingClientRect().top)")
   assert positions==sorted(positions),positions
   for term in ('alex soto','SOTO','12345678-z','630 289 699'):
    await form.locator('[name=patient]').fill(term)
@@ -67,7 +67,7 @@ async def main():
    assert bounds['x']>=0 and bounds['x']+bounds['width']<=width
    await page.keyboard.press('Escape')
    await form.scroll_into_view_if_needed()
-   await page.screenshot(path=f'/tmp/nexocrm-search-{width}.png')
+   await page.screenshot(path=os.path.join(tempfile.gettempdir(),f'nexocrm-search-{width}.png'))
   failure=True
   await form.get_by_role('button',name='Buscar citas').click()
   await expect(page.get_by_role('dialog')).to_contain_text('No se pudieron consultar',timeout=15000)

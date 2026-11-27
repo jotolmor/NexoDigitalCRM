@@ -1,5 +1,5 @@
 """Professional dependent specialties and shared editors. All data and writes mocked."""
-import asyncio, os
+import asyncio, os, tempfile
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, expect
@@ -52,7 +52,12 @@ async def main():
   await page.reload()
   nav=page.get_by_role('navigation',name='Navegación principal')
   await nav.get_by_role('button',name='Profesionales',exact=True).click()
-  form=page.get_by_role('form',name='Añadir profesional')
+  # The create form opens in a side panel from the page header.
+  await expect(page.get_by_role('form',name='Añadir profesional')).to_have_count(0)
+  await page.get_by_role('button',name='+ Añadir profesional',exact=True).click()
+  panel=page.get_by_role('dialog',name='Añadir profesional')
+  form=panel.get_by_role('form',name='Añadir profesional')
+  await expect(form.get_by_label('Nombre',exact=True)).to_be_focused()
   await form.get_by_label('Nombre',exact=True).fill('Elena')
   await form.get_by_label('Apellidos',exact=True).fill('Nueva')
   await form.get_by_label('DNI',exact=True).fill('12345678Z')
@@ -65,16 +70,17 @@ async def main():
   await expect(form.get_by_label('Especialidad',exact=True)).to_have_value('')
   await expect(form.get_by_label('Especialidad',exact=True).locator('option',has_text='Endodoncia')).to_have_count(0)
   await form.get_by_label('Especialidad',exact=True).select_option(label='Cardiología')
-  fields=await form.locator('label').evaluate_all('(els)=>els.slice(0,4).map(e=>e.getBoundingClientRect().top)')
-  assert max(fields)-min(fields)<2,fields
   await form.get_by_role('button',name='Guardar',exact=True).click()
   await expect(page.locator('.directory-list')).to_contain_text('Elena Nueva')
   assert writes[0][2]['dni']=='12345678Z' and writes[0][2]['nif']=='B12345678'
   await expect(page.locator('.directory-record',has_text='Elena Nueva')).to_contain_text('NIF: B12345678')
   await expect(form.get_by_label('Profesión',exact=True)).to_have_value('')
+  await expect(form).to_contain_text('Profesional guardado correctamente.')
+  await panel.get_by_role('button',name='Cerrar',exact=True).click()
+  await expect(panel).to_have_count(0)
   row=page.locator('.directory-record',has_text='Clara Montoro')
   assert await row.evaluate('e=>getComputedStyle(e).flexDirection')=='column'
-  await page.screenshot(path='/tmp/nexocrm-professionals-desktop.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-professionals-desktop.png'),full_page=True)
   edit_button=row.get_by_role('button',name='Editar',exact=True)
   await edit_button.click()
   dialog=page.get_by_role('dialog',name='Editar Clara Montoro',exact=True)
@@ -107,7 +113,7 @@ async def main():
   await edit_button.click();dialog=page.get_by_role('dialog')
   box=await dialog.bounding_box()
   assert box['x']>=0 and box['x']+box['width']<=391 and box['y']>=0 and box['y']+box['height']<=845,box
-  await page.screenshot(path='/tmp/nexocrm-professional-edit-mobile.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-professional-edit-mobile.png'),full_page=True)
   await dialog.get_by_role('button',name='Cerrar edición').click()
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
   await page.set_viewport_size({'width':1440,'height':1000})

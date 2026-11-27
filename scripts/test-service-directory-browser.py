@@ -1,5 +1,5 @@
 """Service classification, vertical directory and central editing; mocked API only."""
-import asyncio, os
+import asyncio, os, tempfile
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, expect
@@ -37,10 +37,12 @@ async def main():
   await page.reload()
   nav=page.get_by_role('navigation',name='Navegación principal')
   await nav.get_by_role('button',name='Servicios',exact=True).click()
-  form=page.get_by_role('form',name='Añadir servicio',exact=True)
-  fields=await form.locator('label').evaluate_all('(els)=>els.slice(0,4).map(e=>e.getBoundingClientRect().top)')
-  # Description textarea is taller; fields share the same horizontal row.
-  assert max(fields)-min(fields)<30,fields
+  # The create form opens in a side panel from the page header.
+  await expect(page.get_by_role('form',name='Añadir servicio',exact=True)).to_have_count(0)
+  await page.get_by_role('button',name='+ Añadir servicio',exact=True).click()
+  panel=page.get_by_role('dialog',name='Añadir servicio')
+  form=panel.get_by_role('form',name='Añadir servicio',exact=True)
+  await expect(form.get_by_label('Nombre',exact=True)).to_be_focused()
   await form.get_by_label('Nombre',exact=True).fill('Revisión especializada')
   await form.get_by_label('Profesión',exact=True).select_option(label='Odontología')
   await form.get_by_label('Especialidad',exact=True).select_option(label='Endodoncia')
@@ -60,11 +62,13 @@ async def main():
   expected={'name':'Revisión especializada','profession':'Medicina','specialty':'Cardiología','description':'Control y seguimiento','durationMinutes':60,'priceEuros':85}
   assert writes[-1][2]==expected,writes
   await expect(form.get_by_label('Profesión',exact=True)).to_have_value('')
+  await page.keyboard.press('Escape')
+  await expect(panel).to_have_count(0)
   row=page.locator('.directory-record',has_text='Revisión especializada')
   await expect(row).to_contain_text('Medicina · Cardiología')
   assert await row.evaluate('e=>getComputedStyle(e).flexDirection')=='column'
   await row.hover();assert await row.evaluate('e=>getComputedStyle(e).transform')=='none'
-  await page.screenshot(path='/tmp/nexocrm-services-desktop.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-services-desktop.png'),full_page=True)
   await page.reload();await nav.get_by_role('button',name='Servicios',exact=True).click()
   row=page.locator('.directory-record',has_text='Revisión especializada')
   await row.get_by_role('button',name='Editar',exact=True).click()
@@ -95,13 +99,13 @@ async def main():
   await expect(dialog).to_have_count(0)
   await page.set_viewport_size({'width':390,'height':844})
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-  await page.screenshot(path='/tmp/nexocrm-services-mobile.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-services-mobile.png'),full_page=True)
   await row.get_by_role('button',name='Editar',exact=True).click()
   dialog=page.get_by_role('dialog')
   box=await dialog.bounding_box();assert box['x']>=0 and box['x']+box['width']<=391 and box['height']<=805,box
-  await page.screenshot(path='/tmp/nexocrm-service-editor-mobile.png')
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-service-editor-mobile.png'))
   await page.keyboard.press('Escape');await expect(dialog).to_have_count(0)
   assert not errors,errors
   await browser.close()
-  print('PASS: horizontal service form, dependent professions/specialties, duration selection, error/retry, persisted classification, custom/clear/legacy edits, vertical cards and centered mobile editor. All writes mocked.')
+  print('PASS: service form in a side panel, dependent professions/specialties, duration selection, error/retry, persisted classification, custom/clear/legacy edits, vertical cards and centered mobile editor. All writes mocked.')
 asyncio.run(main())

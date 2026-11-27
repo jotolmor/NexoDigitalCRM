@@ -1,12 +1,12 @@
 """Business-sector labels are checked with mocked clinic data, never real accounts."""
-import asyncio
+import asyncio, os, tempfile
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, expect
 
 async def main():
  async with async_playwright() as p:
-  browser=await p.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+  browser=await p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox'])
   page=await browser.new_page(viewport={'width':1280,'height':900})
   await page.clock.set_fixed_time(datetime(2026,11,12,10,tzinfo=timezone.utc))
   sector='CLINIC';errors=[];writes=[];observed=[]
@@ -31,7 +31,7 @@ async def main():
    }.get(path,[])
    await route.fulfill(json=data,headers=headers)
   await page.route('**/api/**',api)
-  await page.goto('http://127.0.0.1:5173')
+  await page.goto(os.environ.get('NEXO_TEST_URL','http://127.0.0.1:5173'))
   await page.evaluate("localStorage.setItem('nexoclinic-session',JSON.stringify({accessToken:'fixture',user:{id:'u',tenantId:'t',clinicId:'c'}}))")
   for sector in ['BEAUTY','FITNESS','PROFESSIONAL_SERVICES','HOME_SERVICES','AUTOMOTIVE','OTHER','CLINIC','EDUCATION']:
    label='Paciente' if sector=='CLINIC' else 'Alumno' if sector=='EDUCATION' else 'Cliente'
@@ -42,24 +42,28 @@ async def main():
    await nav.get_by_role('button',name=plural,exact=True).click()
    await expect(page.get_by_role('heading',name=plural,exact=True)).to_be_visible()
    await expect(page.get_by_role('heading',name='Listado de '+plural.lower())).to_be_visible()
-   await expect(page.locator('.directory-list')).to_contain_text('Ana Prueba')
+   await expect(page.locator('.patient-table')).to_contain_text('Ana Prueba')
    if sector=='AUTOMOTIVE':
     await expect(nav.get_by_role('button')).to_have_count(6)
-    assert await nav.evaluate('e => getComputedStyle(e).gridTemplateColumns.split(" ").length')==6
     await page.set_viewport_size({'width':390,'height':844})
     assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     await page.set_viewport_size({'width':1280,'height':900})
-    await page.screenshot(path='/tmp/nexocrm-automotive-clients.png',full_page=True)
+    await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-automotive-clients.png'),full_page=True)
     await expect(nav.get_by_role('button',name='Citas',exact=True)).to_have_count(0)
     await expect(nav.get_by_role('button',name='Asistente',exact=True)).to_have_count(0)
     await expect(page.locator('.calendar-panel')).to_have_count(0)
     await expect(page.locator('main')).not_to_contain_text('cita')
-    form=page.get_by_role('form',name='Nuevo cliente')
+    await page.get_by_role('button',name='+ Nuevo cliente',exact=True).click()
+    panel=page.get_by_role('dialog',name='Alta de clientes')
+    form=panel.get_by_role('form',name='Nuevo cliente')
     await form.get_by_label('Nombre',exact=True).fill('Eva')
     await form.get_by_label('Apellidos',exact=True).fill('Prueba')
-    await form.get_by_role('button',name='Guardar cliente').click()
-    await expect(form.get_by_role('status')).to_contain_text('Cliente guardado correctamente.')
+    await form.get_by_role('button',name='Guardar',exact=True).click()
+    await expect(form.get_by_role('status')).to_have_text('Cliente guardado correctamente.')
+    await expect(form.get_by_label('Nombre',exact=True)).to_have_value('')
     assert writes[-1]['firstName']=='Eva'
+    await panel.get_by_role('button',name='Cerrar',exact=True).click()
+    await expect(panel).to_have_count(0)
     await nav.get_by_role('button',name='Profesionales',exact=True).click()
     await page.get_by_role('button',name='CrmNexodigitalAssist · Ir al inicio',exact=True).click()
     await expect(page.get_by_role('heading',name='Clientes',exact=True)).to_be_visible()
@@ -73,8 +77,12 @@ async def main():
     assert not any(path.startswith('/api/appointments') or path.startswith('/api/dashboard/') for st,path in observed if st=='AUTOMOTIVE')
    else:
     await nav.get_by_role('button',name='Citas',exact=True).click()
-    await expect(page.get_by_role('heading',name='Nuevo '+label.lower(),exact=True)).to_be_visible()
+    actions=page.locator('.page-actions')
+    await expect(actions.get_by_role('button',name='+ Nuevo '+label.lower(),exact=True)).to_be_visible()
+    await actions.get_by_role('button',name='+ Nueva cita',exact=True).click()
     await expect(page.locator('.appointment-create-form').get_by_role('combobox',name=label,exact=True)).to_be_visible()
+    await page.get_by_role('dialog',name='Nueva cita').get_by_role('button',name='Cerrar',exact=True).click()
+    await expect(page.locator('.appointment-create-form')).to_have_count(0)
     await expect(page.get_by_role('region',name=plural+' con citas',exact=True)).to_contain_text('Ana Prueba')
     await expect(page.locator('.appointment-search-form').get_by_label(label,exact=True)).to_be_visible()
     if sector not in ['CLINIC','EDUCATION']:

@@ -1,12 +1,12 @@
 """Visibility cutoff uses scheduled start, without deleting appointment history."""
-import asyncio
+import asyncio, os
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, expect
 
 async def main():
  async with async_playwright() as p:
-  browser=await p.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+  browser=await p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox'])
   page=await browser.new_page(viewport={'width':1280,'height':900},timezone_id='America/New_York')
   await page.clock.install(time=datetime(2026,11,10,12,tzinfo=timezone.utc))
   records=[]
@@ -21,7 +21,7 @@ async def main():
    data={'/api/appointments':records,'/api/clinic/me':{'name':'Prueba','timezone':'Europe/Madrid'},'/api/dashboard/calendar':{'days':[]},'/api/dashboard/day':{'appointments':[],'timezone':'Europe/Madrid'}}.get(path,[])
    await route.fulfill(json=data,headers=headers)
   await page.route('**/api/**',api)
-  await page.goto('http://127.0.0.1:5173')
+  await page.goto(os.environ.get('NEXO_TEST_URL','http://127.0.0.1:5173'))
   await page.evaluate("localStorage.setItem('nexoclinic-session',JSON.stringify({accessToken:'fixture',user:{id:'u',tenantId:'t',clinicId:'c'}}))")
   await page.reload()
   await page.get_by_role('navigation').get_by_role('button',name='Citas',exact=True).click()

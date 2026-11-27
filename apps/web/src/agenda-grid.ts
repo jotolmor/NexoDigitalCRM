@@ -17,6 +17,24 @@ export type DayData = { date: string; timezone: string; professionals: DayProfes
 export type Block = { kind: 'appointment' | 'free' | 'absence' | 'closed'; startMinute: number; endMinute: number; appointment?: AgendaAppointment; lane?: number; lanes?: number };
 type Range = { startMinute: number; endMinute: number };
 
+const list = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
+
+/** Fills in missing lists so an incomplete /dashboard/day response cannot break the agenda. */
+export function normalizeDay(raw: unknown, date: string): DayData {
+  const day = (raw && typeof raw === 'object' ? raw : {}) as Partial<DayData>;
+  return {
+    date: typeof day.date === 'string' ? day.date : date,
+    timezone: typeof day.timezone === 'string' ? day.timezone : 'Europe/Madrid',
+    professionals: list<Partial<DayProfessional>>(day.professionals)
+      .filter(item => item && typeof item.id === 'string')
+      .map(item => ({
+        ...item, id: item.id as string, name: item.name ?? '',
+        services: list(item.services), schedule: list(item.schedule), appointments: list(item.appointments),
+        timeOff: list(item.timeOff), freeSlots: list(item.freeSlots),
+      })),
+  };
+}
+
 export const SLOT_MINUTES = 15;
 const DEFAULT_RANGE: Range = { startMinute: 8 * 60, endMinute: 20 * 60 };
 

@@ -43,10 +43,10 @@ async def main():
   await page.get_by_label('Contraseña',exact=True).fill('password-seguro')
   await page.get_by_role('button',name='Iniciar sesión').click()
   await expect(page.get_by_role('button',name='Entrando…')).to_be_disabled()
-  await expect(page.get_by_role('navigation',name='Navegación principal')).to_be_visible()
+  await expect(page.get_by_role('button',name='Menú')).to_be_visible()
   await expect(page).to_have_url(base+'/')
   assert requests[-1][1]=={'email':'demo@example.invalid','password':'password-seguro'}
-  await page.locator('button.logout').click()
+  await page.get_by_role('button',name='Menú').click(); await page.locator('button.logout').click()
   await expect(page.get_by_role('heading',name='Iniciar sesión')).to_be_visible()
   assert await page.evaluate('localStorage.getItem("nexoclinic-session")') is None
   await page.get_by_role('link',name='Crear una cuenta').click()
@@ -78,12 +78,12 @@ async def main():
   assert len(requests)==2
   await specialty.select_option('Odontología')
   await page.get_by_role('button',name='Crear cuenta',exact=True).click()
-  await expect(page.get_by_role('navigation',name='Navegación principal')).to_be_visible()
+  await expect(page.get_by_role('button',name='Menú')).to_be_visible()
   await expect(page).to_have_url(base+'/')
   assert requests[-1][0].endswith('/auth/register')
   assert requests[-1][1]=={'clinicName':'Clínica Prueba','address':'Calle Prueba, 35, Sevilla','specialty':'Odontología','name':'Usuario Prueba','email':'nuevo@example.invalid','password':'password-seguro','businessType':'CLINIC'}
   assert len(requests)==3
-  await page.locator('button.logout').click()
+  await page.get_by_role('button',name='Menú').click(); await page.locator('button.logout').click()
   await page.get_by_role('link',name='Crear una cuenta').click()
   await page.locator('select[name=businessType]').select_option('PROFESSIONAL_SERVICES')
   await page.locator('select[name=specialty]').select_option('__other__')
@@ -94,7 +94,7 @@ async def main():
   assert len(requests)==3
   await page.locator('input[name=customSpecialty]').fill('  Automatización con IA  ')
   await page.get_by_role('button',name='Crear cuenta',exact=True).click()
-  await expect(page.get_by_role('navigation',name='Navegación principal')).to_be_visible()
+  await expect(page.get_by_role('button',name='Menú')).to_be_visible()
   assert requests[-1][1]['specialty']=='Automatización con IA'
   assert requests[-1][1]['businessType']=='PROFESSIONAL_SERVICES'
   assert requests[-1][1]['address']=='Calle Nueva, 12, Madrid'

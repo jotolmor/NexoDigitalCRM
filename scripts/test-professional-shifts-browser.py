@@ -1,5 +1,5 @@
 """Professional shift management and AI preview/confirmation. Mock data only."""
-import asyncio, os
+import asyncio, os, tempfile
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, expect
@@ -85,7 +85,7 @@ async def main():
   await question.press('Enter')
   await expect(page.get_by_role('heading',name='Propuesta de turnos')).to_be_visible()
   assert len(writes)==before
-  await page.screenshot(path='/tmp/nexocrm-professional-shifts-desktop.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-professional-shifts-desktop.png'),full_page=True)
   await nav.get_by_role('button',name='Asistente',exact=True).click()
   await expect(page.locator('.assistant-chat-history')).to_have_count(0)
   await nav.get_by_role('button',name='Turnos de profesionales',exact=True).click()
@@ -122,7 +122,7 @@ async def main():
   assert await log.evaluate('e=>Math.abs(e.scrollHeight-e.clientHeight-e.scrollTop)<3')
   await log.evaluate('e=>e.scrollTop=0')
   assert await log.evaluate('e=>e.scrollTop')==0
-  await page.screenshot(path='/tmp/nexocrm-professional-shifts-mobile.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-professional-shifts-mobile.png'),full_page=True)
   assert not errors,errors
   await browser.close()
   print('PASS: renamed menu, real-shaped professional/shift cards, manual add/edit/soft-remove, AI preview without writes, confirmation refresh, isolated persistent history, failure/manual fallback and responsive layouts. All writes mocked.')

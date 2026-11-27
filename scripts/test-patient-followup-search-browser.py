@@ -1,5 +1,5 @@
 """Patient search and follow-up results use mocked data, with no real writes."""
-import asyncio, os, re
+import asyncio, os, re, tempfile
 from urllib.parse import urlparse, parse_qs
 from playwright.async_api import async_playwright, expect
 
@@ -45,7 +45,7 @@ async def main():
   assert max(labels)-min(labels)<2,labels
   first=page.locator('.followup-search-layout .directory-record').first
   assert await first.evaluate('e=>getComputedStyle(e).flexDirection')=='column'
-  await page.screenshot(path='/tmp/nexocrm-followup-search-desktop.png',full_page=True)
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-followup-search-desktop.png'),full_page=True)
   search_button=form.get_by_role('button',name='Buscar paciente',exact=True)
   await search_button.click();await expect(form.get_by_role('alert')).to_contain_text('Introduce al menos')
   assert not calls
@@ -94,13 +94,13 @@ async def main():
   await expect(dialog.get_by_role('alert')).to_contain_text('No se pudo realizar la búsqueda.')
   await dialog.get_by_role('button',name='Reintentar búsqueda').click()
   await expect(dialog.locator('.directory-record')).to_have_count(2)
-  await page.screenshot(path='/tmp/nexocrm-followup-search-results.png')
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-followup-search-results.png'))
   await dialog.get_by_role('button',name='Cerrar seguimiento',exact=True).click()
   await page.set_viewport_size({'width':390,'height':844})
   assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
   dialog=await search(phone='654000000')
   box=await dialog.bounding_box();assert box['x']>=0 and box['x']+box['width']<=391 and box['height']<=805,box
-  await page.screenshot(path='/tmp/nexocrm-followup-search-mobile.png')
+  await page.screenshot(path=os.path.join(tempfile.gettempdir(),'nexocrm-followup-search-mobile.png'))
   await dialog.get_by_role('button',name='Ver seguimiento',exact=True).click()
   await expect(page.get_by_role('dialog')).to_contain_text('Este paciente no tiene seguimientos registrados.')
   await page.keyboard.press('Escape')

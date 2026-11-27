@@ -1,12 +1,12 @@
 """Navigation, motion preferences and assistant continuity with fixture data."""
-import asyncio, os
+import asyncio, os, tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from playwright.async_api import async_playwright, expect
 
 SESSION={'accessToken':'fixture-token','user':{'id':'nav-user','name':'Prueba','tenantId':'tenant','clinicId':'clinic'}}
-ARTIFACTS=Path('/tmp/nexocrm-navigation');ARTIFACTS.mkdir(exist_ok=True)
+ARTIFACTS=Path(tempfile.gettempdir())/'nexocrm-navigation';ARTIFACTS.mkdir(exist_ok=True)
 async def main():
  async with async_playwright() as p:
   browser=await p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox'])
@@ -49,6 +49,8 @@ async def main():
     await expect(nav).to_be_hidden()
     await menu.click()
     await expect(menu).to_have_attribute('aria-expanded','true')
+    # Wait for the slide-in transition to finish before measuring.
+    await page.wait_for_function("document.querySelector('aside.workspace-sidebar').getBoundingClientRect().left>=0 && !document.getAnimations().length")
    else:
     await expect(menu).to_be_hidden()
    for button in await nav.get_by_role('button').all():
@@ -89,5 +91,5 @@ async def main():
   assert not errors,errors
   assert '/api/assistant/confirm' not in calls
   await browser.close()
-  print('PASS: no sidebar, 8 destinations, active state, 5 viewport sizes, animation/reduced motion, assistant history/draft, keyboard focus and logout. No production data accessed.')
+  print('PASS: fixed sidebar and narrow-screen drawer, 8 destinations, active state, 5 viewport sizes, animation/reduced motion, assistant history/draft, keyboard focus and logout. No production data accessed.')
 asyncio.run(main())
